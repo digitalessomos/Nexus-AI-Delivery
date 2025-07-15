@@ -66,6 +66,7 @@
         <div class="container mx-auto flex justify-between items-center">
             <h1 class="text-2xl font-bold">DeliveryLink Pro <span class="text-indigo-200">Módulo de Administración (Modo Prueba)</span></h1>
             <div class="flex space-x-4">
+                <!-- Reverted button to its previous state -->
                 <a href="#createOrderSection" id="newOrderBtn" class="bg-indigo-600 hover:bg-indigo-800 text-white font-bold py-2 px-4 rounded-lg transition-colors shadow-md">
                     Nuevo Pedido
                 </a>
@@ -220,7 +221,16 @@
             </div>
             <div class="md:col-span-2">
                 <label for="newItem" class="block text-gray-700 text-sm font-bold mb-2">Artículo/Descripción del Pedido:</label>
-                <input type="text" id="newItem" class="shadow appearance-none border rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" placeholder="Ej: Pizza Grande + Refresco" required>
+                <!-- Replaced input with select dropdown -->
+                <select id="newItem" class="shadow appearance-none border rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required>
+                    <option value="">Seleccionar Artículo</option>
+                    <option value="1/4">1/4</option>
+                    <option value="1/2">1/2</option>
+                    <option value="1K">1K</option>
+                    <option value="1k 1/4">1k 1/4</option>
+                    <option value="1k 1/2">1k 1/2</option>
+                    <option value="2k">2k</option>
+                </select>
             </div>
             <div class="md:col-span-2 flex justify-end gap-2">
                 <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-lg transition-colors shadow-md">
@@ -241,7 +251,7 @@
             <p class="text-gray-600 text-center col-span-full">No hay pedidos entregados aún.</p>
         </div>
         <button id="exportDeliveredOrdersBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors shadow-md w-full">
-            Exportar JSON de Pedidos Entregados
+            Datos de Pedidos Entregados
         </button>
     </section>
 
@@ -286,6 +296,8 @@
             <div class="flex space-x-4 mt-2 md:mt-0">
                 <a href="#" class="hover:text-indigo-200 transition-colors">Política de Privacidad</a>
                 <a href="#" class="hover:text-indigo-200 transition-colors">Términos de Servicio</a>
+                <!-- New link added here -->
+                <a href="https://deliverylink-pro.netlify.app/landing" target="_blank" class="hover:text-indigo-200 transition-colors">Saber más acerca Módulo de Administración</a>
             </div>
         </div>
     </footer>
@@ -429,6 +441,7 @@
                         { id: 'R001', name: 'Pedro Gómez', type: 'Propio', status: 'Disponible' },
                         { id: 'R002', name: 'Laura Fernández', type: 'Externo', status: 'Disponible' },
                         { id: 'R003', name: 'Miguel Torres', type: 'Propio', status: 'No Disponible' },
+                        { id: 'R004', name: 'Cristian', type: 'Rapiboy', status: 'Disponible' }, // Updated driver name and type
                     ];
 
                     saveData(); // Save initial mock data to localStorage
@@ -1078,7 +1091,7 @@
 
                 const customerName = newCustomerNameInput.value.trim();
                 const address = newAddressInput.value.trim();
-                const item = newItemInput.value.trim();
+                const item = newItemInput.value.trim(); // Now gets value from select
                 const price = parseFloat(newPriceInput.value);
 
                 if (!customerName || !address || !item || isNaN(price) || price < 0) {
@@ -1109,7 +1122,7 @@
                 // Clear form fields and hide the section after successful creation
                 newCustomerNameInput.value = '';
                 newAddressInput.value = '';
-                newItemInput.value = '';
+                newItemInput.value = ''; // Clear select value
                 newPriceInput.value = '';
                 createOrderSection.classList.add('hidden'); // Hide the section after creation
                 
@@ -1154,7 +1167,6 @@
 
                     let totalSales = 0;
                     let totalDeliveredOrders = 0;
-                    let totalDeliveryTimeMs = 0;
                     let ordersWithValidDeliveryTime = 0;
 
                     deliveredOrders.forEach(order => {
