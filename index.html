@@ -1,0 +1,1062 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus-AI-Delivery (Modo Prueba)</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts - Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <!-- Tone.js CDN for sound effects -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            scroll-behavior: smooth;
+            background-color: #f9fafb; /* Light gray background */
+            min-height: 100vh; /* Ensure body takes full height */
+            display: flex; /* Use flexbox for main layout */
+            flex-direction: column; /* Stack header and main content vertically */
+            padding-top: 0; /* Remove padding for fixed header */
+        }
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        .chat-message-local {
+            background-color: #e0f2fe; /* Light blue */
+            align-self: flex-end;
+            border-radius: 0.75rem; /* rounded-lg */
+            padding: 0.5rem 1rem;
+            max-width: 75%;
+        }
+        .chat-message-repartidor {
+            background-color: #f3f4f6; /* Light gray */
+            align-self: flex-start;
+            border-radius: 0.75rem; /* rounded-lg */
+            padding: 0.5rem 1rem;
+            max-width: 75%;
+        }
+        .chat-message-cliente {
+            background-color: #ffe0b2; /* Light orange */
+            align-self: flex-start;
+            border-radius: 0.75rem; /* rounded-lg */
+            padding: 0.5rem 1rem;
+            max-width: 75%;
+        }
+
+        /* Header is no longer fixed, so no special styles needed here */
+    </style>
+</head>
+<body>
+
+    <!-- Header Section -->
+    <header class="bg-indigo-700 text-white p-4 shadow-md">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-2xl font-bold">DeliveryLink Pro <span class="text-indigo-200">Módulo de Administración (Modo Prueba)</span></h1>
+            <div class="flex space-x-4">
+                <a href="#createOrderSection" id="newOrderBtn" class="bg-indigo-600 hover:bg-indigo-800 text-white font-bold py-2 px-4 rounded-lg transition-colors shadow-md">
+                    Nuevo Pedido
+                </a>
+                <button id="resetApp" class="bg-indigo-600 hover:bg-indigo-800 text-white font-bold py-2 px-4 rounded-lg transition-colors shadow-md">
+                    Reiniciar Prueba
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-grow container mx-auto p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        <!-- Pedidos Activos Column -->
+        <section class="lg:col-span-1 bg-white p-6 rounded-xl shadow-lg">
+            <h2 class="text-2xl font-bold text-gray-900 mb-6">Pedidos Activos</h2>
+            <div id="activeOrdersList" class="space-y-4">
+                <!-- Orders will be dynamically loaded here -->
+            </div>
+        </section>
+
+        <!-- Detalle del Pedido y Comunicación Column -->
+        <section class="lg:col-span-2 bg-white p-6 rounded-xl shadow-lg flex flex-col">
+            <h2 class="text-2xl font-bold text-gray-900 mb-6">Detalle del Pedido y Comunicación</h2>
+
+            <div id="orderDetails" class="hidden mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <!-- Applied bg-blue-100 and text-blue-800 to first five fields -->
+                <h3 class="text-xl font-semibold mb-2 bg-blue-100 p-2 rounded-md">Pedido #<span id="detailOrderId" class="text-blue-800"></span></h3>
+                <p class="mb-1 bg-blue-100 p-2 rounded-md">**Cliente:** <span id="detailCustomerName" class="text-blue-800"></span></p>
+                <p class="mb-1 bg-blue-100 p-2 rounded-md">**Dirección:** <span id="detailAddress" class="text-blue-800"></span></p>
+                <p class="mb-1 bg-blue-100 p-2 rounded-md">**Artículo:** <span id="detailItem" class="text-blue-800"></span></p>
+                <p class="mb-1 bg-blue-100 p-2 rounded-md">**Precio:** $<span id="detailPrice" class="text-blue-800"></span></p>
+                
+                <!-- Container for hidden fields and toggle button -->
+                <div class="flex items-center justify-between mb-2">
+                    <p class="text-gray-700 font-bold">Horarios:</p>
+                    <button id="toggleTimeDetailsBtn" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-1 px-3 rounded-full transition-colors text-lg">
+                        +
+                    </button>
+                </div>
+                
+                <!-- Hidden fields for Received and Delivered times with new background colors -->
+                <div id="timeDetails" class="hidden">
+                    <p class="text-gray-700 mb-1 pl-4 bg-green-100 p-1 rounded-md">**Recibido:** <span id="detailHoraRecibido"></span></p>
+                    <p class="text-gray-700 mb-1 pl-4 bg-green-100 p-1 rounded-md">**Entregado:** <span id="detailHoraEntregado"></span></p>
+                </div>
+
+                <!-- Línea para mostrar el repartidor asignado con fondo rojo -->
+                <p class="text-gray-700 mb-1 bg-red-100 p-1 rounded-md">**Repartidor Asignado:** <span id="detailAssignedRepartidor" class="font-semibold">N/A</span></p>
+                <!-- Estado con fondo rojo -->
+                <p class="text-700 mb-4 bg-red-100 p-1 rounded-md">**Estado:** <span id="detailStatus" class="font-semibold"></span></p>
+
+                <!-- Assign Repartidor -->
+                <div id="assignRepartidorSection" class="mb-4">
+                    <label for="repartidorSelect" class="block text-gray-700 text-sm font-bold mb-2">Asignar Repartidor:</label>
+                    <select id="repartidorSelect" class="shadow appearance-none border rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                        <option value="">Seleccionar Repartidor</option>
+                    </select>
+                    <button id="assignRepartidorBtn" class="mt-4 bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg transition-colors shadow-md w-full">
+                        Asignar Repartidor
+                    </button>
+                </div>
+
+                <!-- Status Update Buttons -->
+                <div id="statusUpdateSection" class="mt-4 hidden">
+                    <div class="flex flex-wrap gap-2 mt-4">
+                        <button data-status="Recogido" class="status-btn bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded-lg transition-colors shadow-md flex-1 min-w-[120px]">Recogido</button>
+                        <button data-status="En Camino" class="status-btn bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition-colors shadow-md flex-1 min-w-[120px]">En Camino</button>
+                    </div>
+                </div>
+
+                <!-- Chat Section (Local-Repartidor) -->
+                <div id="chatSectionLocalRepartidor" class="mt-6 hidden border-t pt-4 border-gray-200">
+                    <h4 class="text-lg font-semibold text-gray-800 mb-3">Chat con Repartidor (Local)</h4>
+                    <div id="chatMessagesLocalRepartidor" class="bg-white h-48 overflow-y-auto p-3 rounded-lg border border-gray-300 mb-4 flex flex-col space-y-2">
+                        <!-- Local-Repartidor chat messages will be loaded here -->
+                    </div>
+                    <div class="flex gap-2">
+                        <input type="text" id="chatInputLocalRepartidor" placeholder="Escribe un mensaje al repartidor..." class="flex-grow shadow appearance-none border rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                        <button id="sendChatBtnLocalRepartidor" class="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg transition-colors shadow-md">Enviar</button>
+                    </div>
+                    <div class="mt-3 flex flex-wrap gap-2">
+                        <button data-message="Pedido listo para recoger." class="preset-message-btn-local bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm py-1 px-3 rounded-full transition-colors">Pedido listo</button>
+                    </div>
+                </div>
+
+                <!-- New Chat Section (Repartidor-Cliente) -->
+                <div id="chatSectionRepartidorCliente" class="mt-6 hidden border-t pt-4 border-gray-200">
+                    <h4 class="text-lg font-semibold text-gray-800 mb-3">Chat con Cliente (Repartidor)</h4>
+                    <div id="chatMessagesRepartidorCliente" class="bg-white h-48 overflow-y-auto p-3 rounded-lg border border-gray-300 mb-4 flex flex-col space-y-2">
+                        <!-- Repartidor-Cliente chat messages will be loaded here -->
+                    </div>
+                    <div class="flex gap-2">
+                        <input type="text" id="chatInputRepartidorCliente" placeholder="Mensaje al cliente..." class="flex-grow shadow appearance-none border rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                        <button id="sendChatBtnRepartidorCliente" class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-4 rounded-lg transition-colors shadow-md">Enviar</button>
+                    </div>
+                    <div class="mt-3 flex flex-wrap gap-2">
+                        <button data-message="Estoy cerca, llego en 5 minutos." data-sender="repartidor" class="preset-message-btn-cliente bg-purple-200 hover:bg-purple-300 text-purple-800 text-sm py-1 px-3 rounded-full transition-colors">Llego en 5 min</button>
+                        <button data-message="Llego en 10-15 minutos." data-sender="repartidor" class="preset-message-btn-cliente bg-purple-200 hover:bg-purple-300 text-purple-800 text-sm py-1 px-3 rounded-full transition-colors">Llego en 10-15</button>
+                        <button data-message="Llego en 15-20 minutos." data-sender="repartidor" class="preset-message-btn-cliente bg-purple-200 hover:bg-purple-300 text-purple-800 text-sm py-1 px-3 rounded-full transition-colors">Llego en 15-20</button>
+                        <button data-message="Ya estoy en tu puerta." data-sender="repartidor" class="preset-message-btn-cliente bg-purple-200 hover:bg-purple-300 text-purple-800 text-sm py-1 px-3 rounded-full transition-colors">En la puerta</button>
+                    </div>
+                </div>
+
+                <!-- NEW Chat Section (Repartidor-Local) -->
+                <div id="chatSectionRepartidorLocal" class="mt-6 hidden border-t pt-4 border-gray-200">
+                    <h4 class="text-lg font-semibold text-gray-800 mb-3">Chat con local (Repartidor)</h4>
+                    <div id="chatMessagesRepartidorLocal" class="bg-white h-48 overflow-y-auto p-3 rounded-lg border border-gray-300 mb-4 flex flex-col space-y-2">
+                        <!-- Repartidor-Local chat messages will be loaded here -->
+                    </div>
+                    <div class="flex gap-2">
+                        <input type="text" id="chatInputRepartidorLocal" placeholder="Mensaje al local..." class="flex-grow shadow appearance-none border rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                        <button id="sendChatBtnRepartidorLocal" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition-colors shadow-md">Enviar</button>
+                    </div>
+                    <div class="mt-3 flex flex-wrap gap-2">
+                        <button data-message="Cliente no responde." data-action="issue_repartidor_local" class="preset-message-btn-repartidor-local bg-red-200 hover:bg-red-300 text-red-800 text-sm py-1 px-3 rounded-full transition-colors">Cliente no responde</button>
+                        <button data-message="La dirección no aparece." data-action="issue_repartidor_local" class="preset-message-btn-repartidor-local bg-red-200 hover:bg-red-300 text-red-800 text-sm py-1 px-3 rounded-full transition-colors">Dirección no aparece</button>
+                        <!-- New buttons for status updates from repartidor -->
+                        <button data-message="Pedido recogido." data-action="update_status_from_repartidor_chat" data-new-status="Recogido" class="preset-message-btn-repartidor-local bg-yellow-200 hover:bg-yellow-300 text-yellow-800 text-sm py-1 px-3 rounded-full transition-colors">Recogido</button>
+                        <button data-message="Pedido en camino." data-action="update_status_from_repartidor_chat" data-new-status="En Camino" class="preset-message-btn-repartidor-local bg-blue-200 hover:bg-blue-300 text-blue-800 text-sm py-1 px-3 rounded-full transition-colors">En Camino</button>
+                        <button data-message="Pedido entregado." data-action="deliver_order_repartidor_local" class="preset-message-btn-repartidor-local bg-green-500 hover:bg-green-600 text-white text-sm py-1 px-3 rounded-full transition-colors">Entregado</button>
+                    </div>
+                </div>
+
+            </div>
+
+            <p id="noOrderSelected" class="text-center text-gray-600 mt-10">Selecciona un pedido de la lista para ver los detalles y comunicarte.</p>
+        </section>
+    </main>
+
+    <!-- New Order Creation Section -->
+    <section id="createOrderSection" class="container mx-auto p-6 mt-6 bg-white rounded-xl shadow-lg hidden">
+        <h2 class="text-2xl font-bold text-gray-900 mb-6">Crear Nuevo Pedido</h2>
+        <form id="newOrderForm" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <label for="newCustomerName" class="block text-gray-700 text-sm font-bold mb-2">Nombre del Cliente:</label>
+                <input type="text" id="newCustomerName" class="shadow appearance-none border rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" placeholder="Ej: Ana García" required>
+            </div>
+            <div>
+                <label for="newAddress" class="block text-gray-700 text-sm font-bold mb-2">Dirección de Entrega:</label>
+                <input type="text" id="newAddress" class="shadow appearance-none border rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" placeholder="Ej: Calle Falsa 123" required>
+            </div>
+            <div>
+                <label for="newPrice" class="block text-gray-700 text-sm font-bold mb-2">Precio:</label>
+                <input type="number" id="newPrice" class="shadow appearance-none border rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" placeholder="Ej: 25.50" step="0.01" min="0" required>
+            </div>
+            <div class="md:col-span-2">
+                <label for="newItem" class="block text-gray-700 text-sm font-bold mb-2">Artículo/Descripción del Pedido:</label>
+                <input type="text" id="newItem" class="shadow appearance-none border rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" placeholder="Ej: Pizza Grande + Refresco" required>
+            </div>
+            <div class="md:col-span-2 flex justify-end gap-2">
+                <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-lg transition-colors shadow-md">
+                    Generar Pedido
+                </button>
+                <button type="button" id="cancelNewOrderBtn" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-6 rounded-lg transition-colors shadow-md">
+                    Cancelar
+                </button>
+            </div>
+        </form>
+    </section>
+
+    <!-- NEW Delivered Orders Section -->
+    <section id="deliveredOrdersSection" class="container mx-auto p-6 mt-6 bg-white rounded-xl shadow-lg">
+        <h2 class="text-2xl font-bold text-gray-900 mb-6">Historial de Pedidos Entregados</h2>
+        <div id="deliveredOrdersList" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+            <!-- Delivered orders will be dynamically loaded here -->
+            <p class="text-gray-600 text-center col-span-full">No hay pedidos entregados aún.</p>
+        </div>
+        <button id="exportDeliveredOrdersBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors shadow-md w-full">
+            Exportar JSON de Pedidos Entregados
+        </button>
+    </section>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // --- Tone.js Setup for Sounds ---
+            // Create a simple synth for the bell sound (assignment)
+            const bellSynth = new Tone.Synth({
+                oscillator: {
+                    type: "sine"
+                },
+                envelope: {
+                    attack: 0.005,
+                    decay: 0.1,
+                    sustain: 0.05,
+                    release: 0.5
+                }
+            }).toDestination();
+
+            // Create a synth for the double bell sound (delivery)
+            const doubleBellSynth = new Tone.Synth({
+                oscillator: {
+                    type: "triangle" // Slightly different timbre for distinction
+                },
+                envelope: {
+                    attack: 0.005,
+                    decay: 0.15,
+                    sustain: 0.05,
+                    release: 0.6
+                }
+            }).toDestination();
+
+            // Create a synth for the alert sound (repartidor to local communication)
+            const alertSynth = new Tone.Synth({
+                oscillator: {
+                    type: "square" // A more piercing tone for alert
+                },
+                envelope: {
+                    attack: 0.01,
+                    decay: 0.2,
+                    sustain: 0.1,
+                    release: 0.3
+                }
+            }).toDestination();
+
+            // Create a synth for the client notification sound (repartidor to client communication)
+            const clientNotificationSynth = new Tone.Synth({
+                oscillator: {
+                    type: "fmsine", // FM synthesis for a softer, 'ping' like sound
+                    modulationType: "square",
+                    harmonicity: 1.5,
+                    modulationIndex: 2
+                },
+                envelope: {
+                    attack: 0.001,
+                    decay: 0.2,
+                    sustain: 0.01,
+                    release: 0.2
+                }
+            }).toDestination();
+
+            // Function to play the single bell sound (assignment)
+            function playBellSound() {
+                // Ensure Tone.js is started (required for audio context)
+                if (Tone.context.state !== 'running') {
+                    Tone.start();
+                }
+                bellSynth.triggerAttackRelease("C5", "8n"); // Original bell sound
+            }
+
+            // Function to play the double bell sound (delivery)
+            function playDoubleBellSound() {
+                if (Tone.context.state !== 'running') {
+                    Tone.start();
+                }
+                doubleBellSynth.triggerAttackRelease("C5", "16n", Tone.now());
+                doubleBellSynth.triggerAttackRelease("E5", "16n", Tone.now() + 0.1);
+            }
+
+            // Function to play the alert sound (repartidor to local communication via issue tags)
+            function playAlertSound() {
+                if (Tone.context.state !== 'running') {
+                    Tone.start();
+                }
+                alertSynth.triggerAttackRelease("F#4", "16n");
+            }
+
+            // Function to play the client notification sound (repartidor to client communication via tags)
+            function playClientNotificationSound() {
+                if (Tone.context.state !== 'running') {
+                    Tone.start();
+                }
+                clientNotificationSynth.triggerAttackRelease("G4", "16n");
+            }
+
+            // --- Data Mocking and Persistence (using localStorage) ---
+            // Keys for storing data in localStorage
+            const MOCK_ORDERS_KEY = 'deliverylink_mock_orders';
+            const MOCK_DRIVERS_KEY = 'deliverylink_mock_drivers';
+
+            let orders = [];
+            let drivers = [];
+            let currentOrderId = null;
+
+            // Helper to format time for display (only time, 12-hour with a.m./p.m.)
+            function formatTimeForDisplay(isoString) {
+                if (!isoString) return 'N/A';
+                const date = new Date(isoString);
+                return date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+            }
+
+            // Helper to format time for JSON export (only time, 12-hour with a.m./p.m.)
+            function formatTimeForJSON(isoString) {
+                if (!isoString) return null;
+                const date = new Date(isoString);
+                return date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+            }
+
+            // Load data from localStorage or initialize mock data
+            function loadData() {
+                // Attempt to retrieve stored orders and drivers from localStorage
+                const storedOrders = localStorage.getItem(MOCK_ORDERS_KEY);
+                const storedDrivers = localStorage.getItem(MOCK_DRIVERS_KEY);
+
+                if (storedOrders && storedDrivers) {
+                    // If data exists in localStorage, parse and use it
+                    orders = JSON.parse(storedOrders);
+                    drivers = JSON.parse(storedDrivers);
+                } else {
+                    // If no data in localStorage, initialize with mock data
+                    const now = new Date().toISOString();
+                    orders = [
+                        { id: 'DL001', customer: 'Ana García', address: 'Calle Falsa 123, Ciudad', item: 'Pizza Grande', price: 15.75, status: 'Pendiente', assignedDriverId: null, localRepartidorChatHistory: [], repartidorClienteChatHistory: [], horaRecibido: now, horaEntregado: null },
+                        { id: 'DL002', customer: 'Juan Pérez', address: 'Av. Siempre Viva 742, Ciudad', item: 'Hamburguesa Doble', price: 12.50, status: 'Pendiente', assignedDriverId: null, localRepartidorChatHistory: [], repartidorClienteChatHistory: [], horaRecibido: now, horaEntregado: null },
+                        { id: 'DL003', customer: 'María López', address: 'Blvd. de los Sueños 5, Ciudad', item: 'Sushi Variado', price: 25.00, status: 'Pendiente', assignedDriverId: null, localRepartidorChatHistory: [], repartidorClienteChatHistory: [], horaRecibido: now, horaEntregado: null },
+                        { id: 'DL004', customer: 'Carlos Ruiz', address: 'Paseo del Sol 88, Ciudad', item: 'Tacos x3', price: 8.99, status: 'Entregado', assignedDriverId: 'R001', localRepartidorChatHistory: [{ sender: 'local', message: 'Pedido listo para recoger.' }], repartidorClienteChatHistory: [{ sender: 'repartidor', message: 'Pedido entregado.' }], horaRecibido: now, horaEntregado: new Date(Date.now() + 3600000).toISOString() }, // Example delivered an hour later
+                    ];
+
+                    drivers = [
+                        { id: 'R001', name: 'Pedro Gómez', type: 'Propio', status: 'Disponible' },
+                        { id: 'R002', name: 'Laura Fernández', type: 'Externo', status: 'Disponible' },
+                        { id: 'R003', name: 'Miguel Torres', type: 'Propio', status: 'No Disponible' },
+                    ];
+
+                    saveData(); // Save initial mock data to localStorage
+                }
+            }
+
+            // Save current data to localStorage
+            function saveData() {
+                // Store the current state of orders and drivers in localStorage
+                localStorage.setItem(MOCK_ORDERS_KEY, JSON.stringify(orders));
+                localStorage.setItem(MOCK_DRIVERS_KEY, JSON.stringify(drivers));
+            }
+
+            // --- DOM Elements ---
+            // Removed sidebar and sidebarToggle elements as they are no longer in HTML
+            // mainContentWrapper is no longer needed as a separate div, main is direct child of body
+
+            const activeOrdersList = document.getElementById('activeOrdersList');
+            const orderDetails = document.getElementById('orderDetails');
+            const noOrderSelected = document.getElementById('noOrderSelected');
+
+            const detailOrderId = document.getElementById('detailOrderId');
+            const detailCustomerName = document.getElementById('detailCustomerName');
+            const detailAddress = document.getElementById('detailAddress');
+            const detailItem = document.getElementById('detailItem');
+            const detailPrice = document.getElementById('detailPrice');
+            const detailHoraRecibido = document.getElementById('detailHoraRecibido');
+            const detailHoraEntregado = document.getElementById('detailHoraEntregado');
+            const detailStatus = document.getElementById('detailStatus');
+            const toggleTimeDetailsBtn = document.getElementById('toggleTimeDetailsBtn');
+            const timeDetailsDiv = document.getElementById('timeDetails');
+
+
+            const assignRepartidorSection = document.getElementById('assignRepartidorSection');
+            const repartidorSelect = document.getElementById('repartidorSelect');
+            const assignRepartidorBtn = document.getElementById('assignRepartidorBtn');
+
+            const statusUpdateSection = document.getElementById('statusUpdateSection');
+            const statusUpdateButtons = document.querySelectorAll('.status-btn');
+
+            // Local-Repartidor Chat Elements
+            const chatSectionLocalRepartidor = document.getElementById('chatSectionLocalRepartidor');
+            const chatMessagesLocalRepartidor = document.getElementById('chatMessagesLocalRepartidor');
+            const chatInputLocalRepartidor = document.getElementById('chatInputLocalRepartidor');
+            const sendChatBtnLocalRepartidor = document.getElementById('sendChatBtnLocalRepartidor');
+            const presetMessageBtnsLocal = document.querySelectorAll('.preset-message-btn-local');
+
+            // Repartidor-Cliente Chat Elements
+            const chatSectionRepartidorCliente = document.getElementById('chatSectionRepartidorCliente');
+            const chatMessagesRepartidorCliente = document.getElementById('chatMessagesRepartidorCliente');
+            const chatInputRepartidorCliente = document.getElementById('chatInputRepartidorCliente');
+            const sendChatBtnRepartidorCliente = document.getElementById('sendChatBtnRepartidorCliente');
+            const presetMessageBtnsCliente = document.querySelectorAll('.preset-message-btn-cliente');
+
+            // NEW Repartidor-Local Chat Elements
+            const chatSectionRepartidorLocal = document.getElementById('chatSectionRepartidorLocal');
+            const chatMessagesRepartidorLocal = document.getElementById('chatMessagesRepartidorLocal');
+            const chatInputRepartidorLocal = document.getElementById('chatInputRepartidorLocal');
+            const sendChatBtnRepartidorLocal = document.getElementById('sendChatBtnRepartidorLocal');
+            const presetMessageBtnsRepartidorLocal = document.querySelectorAll('.preset-message-btn-repartidor-local');
+
+            // NEW Delivered Orders Section Elements
+            const deliveredOrdersList = document.getElementById('deliveredOrdersList');
+            const exportDeliveredOrdersBtn = document.getElementById('exportDeliveredOrdersBtn');
+
+            const resetAppBtn = document.getElementById('resetApp'); // Reverted ID to original
+
+            // New Order elements
+            const newOrderBtn = document.getElementById('newOrderBtn'); // Get the new order button
+            const newOrderForm = document.getElementById('newOrderForm');
+            const createOrderSection = document.getElementById('createOrderSection'); // Get the new order section
+            const newCustomerNameInput = document.getElementById('newCustomerName');
+            const newAddressInput = document.getElementById('newAddress');
+            const newItemInput = document.getElementById('newItem');
+            const newPriceInput = document.getElementById('newPrice');
+            const cancelNewOrderBtn = document.getElementById('cancelNewOrderBtn'); // Get the new cancel button
+
+
+            // --- Render Functions ---
+
+            // Renders the list of active orders
+            function renderOrders() {
+                activeOrdersList.innerHTML = ''; // Clear previous list
+                const pendingOrders = orders.filter(order => order.status !== 'Entregado');
+
+                if (pendingOrders.length === 0) {
+                    activeOrdersList.innerHTML = '<p class="text-gray-600 text-center">No hay pedidos activos.</p>';
+                    return;
+                }
+
+                pendingOrders.forEach(order => {
+                    const orderCard = document.createElement('div');
+                    orderCard.className = `bg-white p-4 rounded-lg shadow-md border border-gray-200 cursor-pointer hover:bg-gray-100 transition-colors ${order.id === currentOrderId ? 'border-indigo-500 ring-2 ring-indigo-500' : ''}`;
+                    
+                    // Add a flex container to align order info and delete button
+                    orderCard.innerHTML = `
+                        <div class="flex justify-between items-center mb-2">
+                            <h3 class="text-lg font-semibold text-gray-900">Pedido #${order.id}</h3>
+                            <button class="delete-order-btn text-red-500 hover:text-red-700 font-bold text-xl leading-none" data-order-id="${order.id}">
+                                &times; <!-- 'times' character for X icon -->
+                            </button>
+                        </div>
+                        <p class="text-sm text-gray-600">${order.customer} - ${order.item}</p>
+                        <p class="text-sm font-medium ${getStatusColor(order.status)}">${order.status}</p>
+                    `;
+                    
+                    // Add event listener for selecting the order (excluding the delete button)
+                    orderCard.addEventListener('click', (e) => {
+                        // Prevent selecting the order when clicking the delete button
+                        if (!e.target.classList.contains('delete-order-btn')) {
+                            selectOrder(order.id);
+                        }
+                    });
+
+                    activeOrdersList.appendChild(orderCard);
+                });
+
+                // Attach event listeners to all delete buttons after rendering
+                document.querySelectorAll('.delete-order-btn').forEach(button => {
+                    button.addEventListener('click', (e) => {
+                        const orderIdToDelete = e.target.dataset.orderId;
+                        deleteOrder(orderIdToDelete);
+                    });
+                });
+            }
+
+            // Renders the list of delivered orders in the new section
+            function renderDeliveredOrders() {
+                deliveredOrdersList.innerHTML = ''; // Clear previous list
+                const deliveredOrders = orders.filter(order => order.status === 'Entregado');
+
+                if (deliveredOrders.length === 0) {
+                    // If no delivered orders, display a message spanning all columns
+                    const noOrdersMessage = document.createElement('p');
+                    noOrdersMessage.className = 'text-gray-600 text-center col-span-full';
+                    noOrdersMessage.textContent = 'No hay pedidos entregados aún.';
+                    deliveredOrdersList.appendChild(noOrdersMessage);
+                } else {
+                    deliveredOrders.forEach(order => {
+                        const assignedDriver = drivers.find(d => d.id === order.assignedDriverId);
+                        const driverName = assignedDriver ? assignedDriver.name : 'Desconocido';
+                        const orderItem = document.createElement('div');
+                        orderItem.className = 'bg-gray-50 p-3 rounded-lg border border-gray-200';
+                        orderItem.innerHTML = `
+                            <p class="font-semibold text-gray-900">Pedido #${order.id}</p>
+                            <p class="text-sm text-gray-700">Cliente: ${order.customer}</p>
+                            <p class="text-sm text-gray-700">Artículo: ${order.item}</p>
+                            <p class="text-sm text-gray-700">Precio: $${order.price ? order.price.toFixed(2) : 'N/A'}</p>
+                            <p class="text-sm text-gray-700">Recibido: ${formatTimeForDisplay(order.horaRecibido)}</p>
+                            <p class="text-sm text-gray-700">Entregado: ${formatTimeForDisplay(order.horaEntregado)}</p>
+                            <p class="text-sm text-gray-700">Entregado por: ${driverName}</p>
+                        `;
+                        deliveredOrdersList.appendChild(orderItem);
+                    });
+                }
+            }
+
+
+            // Gets color for status display
+            function getStatusColor(status) {
+                switch (status) {
+                    case 'Pendiente': return 'text-red-600';
+                    case 'Recogido': return 'text-yellow-600';
+                    case 'En Camino': return 'text-blue-600';
+                    case 'Entregado': return 'text-green-600';
+                    default: return 'text-gray-600';
+                }
+            }
+
+            // Populates the repartidor dropdown
+            function populateRepartidorSelect() {
+                repartidorSelect.innerHTML = '<option value="">Seleccionar Repartidor</option>';
+                drivers.filter(driver => driver.status === 'Disponible').forEach(driver => {
+                    const option = document.createElement('option');
+                    option.value = driver.id;
+                    option.textContent = `${driver.name} (${driver.type})`;
+                    repartidorSelect.appendChild(option);
+                });
+            }
+
+            // Renders chat messages for a given chat history and target element
+            function renderChat(chatHistory, targetElement) {
+                targetElement.innerHTML = '';
+                if (chatHistory.length === 0) {
+                    targetElement.innerHTML = '<p class="text-center text-gray-500 text-sm">Inicia la conversación...</p>';
+                }
+                chatHistory.forEach(msg => {
+                    const msgDiv = document.createElement('div');
+                    let senderClass = '';
+                    if (msg.sender === 'local') {
+                        senderClass = 'chat-message-local self-end';
+                    } else if (msg.sender === 'repartidor') {
+                        senderClass = 'chat-message-repartidor self-start';
+                    } else if (msg.sender === 'cliente') {
+                        senderClass = 'chat-message-cliente self-start'; // Assuming client messages appear on the left
+                    }
+                    msgDiv.className = `p-2 rounded-lg text-sm ${senderClass}`;
+                    msgDiv.textContent = msg.message;
+                    targetElement.appendChild(msgDiv);
+                });
+                targetElement.scrollTop = targetElement.scrollHeight; // Scroll to bottom
+            }
+
+            // --- Event Handlers and Logic ---
+
+            // Function to delete an order
+            function deleteOrder(orderIdToDelete) {
+                const confirmDelete = confirm(`¿Estás seguro de que quieres eliminar el pedido #${orderIdToDelete}? Esta acción no se puede deshacer.`);
+                
+                if (confirmDelete) {
+                    const initialOrderCount = orders.length;
+                    orders = orders.filter(order => order.id !== orderIdToDelete);
+                    
+                    if (orders.length < initialOrderCount) { // Check if an order was actually removed
+                        saveData(); // Save data after deletion
+                        
+                        // If the deleted order was the currently selected one, clear details
+                        if (currentOrderId === orderIdToDelete) {
+                            currentOrderId = null;
+                            orderDetails.classList.add('hidden');
+                            noOrderSelected.classList.remove('hidden');
+                        }
+                        
+                        renderOrders(); // Re-render active orders list
+                        renderDeliveredOrders(); // Re-render delivered orders list (in case it was a delivered order being deleted)
+                        alert(`Pedido #${orderIdToDelete} eliminado exitosamente.`);
+                    } else {
+                        alert(`No se encontró el pedido #${orderIdToDelete}.`);
+                    }
+                }
+            }
+
+
+            // Selects an order to display its details
+            function selectOrder(orderId) {
+                currentOrderId = orderId;
+                const selectedOrder = orders.find(order => order.id === orderId);
+
+                if (selectedOrder) {
+                    noOrderSelected.classList.add('hidden');
+                    orderDetails.classList.remove('hidden');
+
+                    detailOrderId.textContent = selectedOrder.id;
+                    detailCustomerName.textContent = selectedOrder.customer;
+                    detailAddress.textContent = selectedOrder.address;
+                    detailItem.textContent = selectedOrder.item;
+                    detailPrice.textContent = selectedOrder.price ? selectedOrder.price.toFixed(2) : 'N/A';
+                    
+                    // Update time details (initially hidden)
+                    detailHoraRecibido.textContent = formatTimeForDisplay(selectedOrder.horaRecibido);
+                    detailHoraEntregado.textContent = formatTimeForDisplay(selectedOrder.horaEntregado);
+                    
+                    // Ensure time details are hidden by default when a new order is selected
+                    timeDetailsDiv.classList.add('hidden');
+                    toggleTimeDetailsBtn.textContent = '+';
+
+                    detailStatus.textContent = selectedOrder.status;
+                    detailStatus.className = `font-semibold ${getStatusColor(selectedOrder.status)}`;
+
+                    // Update assigned repartidor detail - retrieve element here for robustness
+                    const detailAssignedRepartidorElement = document.getElementById('detailAssignedRepartidor');
+                    if (detailAssignedRepartidorElement) { // Defensive check
+                        const assignedDriver = drivers.find(d => d.id === selectedOrder.assignedDriverId);
+                        detailAssignedRepartidorElement.textContent = assignedDriver ? `${assignedDriver.name} (${assignedDriver.type})` : 'N/A';
+                    } else {
+                        console.error("Error: Element with ID 'detailAssignedRepartidor' not found in selectOrder.");
+                    }
+
+                    // Show/hide assign section
+                    if (!selectedOrder.assignedDriverId) {
+                        assignRepartidorSection.classList.remove('hidden');
+                        statusUpdateSection.classList.add('hidden');
+                        chatSectionLocalRepartidor.classList.add('hidden');
+                        chatSectionRepartidorCliente.classList.add('hidden');
+                        chatSectionRepartidorLocal.classList.add('hidden'); // Hide new chat if no driver
+                        populateRepartidorSelect();
+                    } else {
+                        assignRepartidorSection.classList.add('hidden');
+                        statusUpdateSection.classList.remove('hidden');
+                        
+                        // Local-Repartidor Chat: always visible if assigned and not delivered
+                        chatSectionLocalRepartidor.classList.remove('hidden');
+                        renderChat(selectedOrder.localRepartidorChatHistory, chatMessagesLocalRepartidor);
+
+                        // NEW Repartidor-Local Chat: always visible if assigned and not delivered
+                        chatSectionRepartidorLocal.classList.remove('hidden');
+                        renderChat(selectedOrder.localRepartidorChatHistory, chatMessagesRepartidorLocal); // Renders same history
+
+                        // Repartidor-Cliente Chat: only for 'Propio' drivers and if 'Recogido' or 'En Camino'
+                        const assignedDriver = drivers.find(d => d.id === selectedOrder.assignedDriverId); // Re-get assignedDriver here for scope
+                        if (assignedDriver && assignedDriver.type === 'Propio' && (selectedOrder.status === 'Recogido' || selectedOrder.status === 'En Camino')) {
+                            chatSectionRepartidorCliente.classList.remove('hidden');
+                            renderChat(selectedOrder.repartidorClienteChatHistory, chatMessagesRepartidorCliente);
+                        } else {
+                            chatSectionRepartidorCliente.classList.add('hidden');
+                        }
+
+                        // If order is delivered, hide status update and all chats, then clear details
+                        if (selectedOrder.status === 'Entregado') {
+                            statusUpdateSection.classList.add('hidden');
+                            chatSectionLocalRepartidor.classList.add('hidden');
+                            chatSectionRepartidorCliente.classList.add('hidden');
+                            chatSectionRepartidorLocal.classList.add('hidden');
+                            
+                            // Clear order details and show "no order selected" message
+                            currentOrderId = null; // Clear selected order
+                            orderDetails.classList.add('hidden');
+                            noOrderSelected.classList.remove('hidden');
+                        }
+                    }
+                }
+                renderOrders(); // Re-render to highlight selected order (or remove highlight if cleared)
+            }
+
+            // Assigns a repartidor to the current order
+            assignRepartidorBtn.addEventListener('click', () => {
+                if (!currentOrderId) return;
+
+                const selectedDriverId = repartidorSelect.value;
+                if (!selectedDriverId) {
+                    alert('Por favor, selecciona un repartidor.');
+                    return;
+                }
+
+                const orderIndex = orders.findIndex(order => order.id === currentOrderId);
+                if (orderIndex !== -1) {
+                    const assignedDriver = drivers.find(d => d.id === selectedDriverId);
+                    orders[orderIndex].assignedDriverId = selectedDriverId;
+                    orders[orderIndex].status = 'Recogido'; // Initial status upon assignment
+                    orders[orderIndex].localRepartidorChatHistory.push({ sender: 'local', message: `Pedido asignado a ${assignedDriver.name}.` });
+                    saveData(); // Save data after assignment
+                    selectOrder(currentOrderId); // Re-render details
+                    playBellSound(); // Play original bell sound when order is assigned
+                }
+            });
+
+            // Toggle visibility of "Recibido" and "Entregado" fields
+            toggleTimeDetailsBtn.addEventListener('click', () => {
+                timeDetailsDiv.classList.toggle('hidden');
+                if (timeDetailsDiv.classList.contains('hidden')) {
+                    toggleTimeDetailsBtn.textContent = '+';
+                } else {
+                    toggleTimeDetailsBtn.textContent = '-';
+                }
+            });
+
+            // Updates the status of the current order (Local's direct status buttons)
+            statusUpdateButtons.forEach(button => {
+                button.addEventListener('click', (e) => {
+                    if (!currentOrderId) return;
+
+                    const newStatus = e.target.dataset.status;
+                    const orderIndex = orders.findIndex(order => order.id === currentOrderId);
+
+                    if (orderIndex !== -1) {
+                        orders[orderIndex].status = newStatus;
+                        orders[orderIndex].localRepartidorChatHistory.push({ sender: 'local', message: `El estado del pedido ha cambiado a: ${newStatus}.` });
+
+                        if (newStatus === 'Entregado') {
+                            orders[orderIndex].horaEntregado = new Date().toISOString();
+                        }
+
+                        // If status is 'Entregado' and driver is external, deactivate chat
+                        const assignedDriver = drivers.find(d => d.id === orders[orderIndex].assignedDriverId);
+                        if (newStatus === 'Entregado' && assignedDriver && assignedDriver.type === 'Externo') {
+                            setTimeout(() => {
+                                alert('El chat con el repartidor externo se ha desactivado tras la entrega.');
+                            }, 500);
+                        }
+
+                        saveData(); // Save data after status update
+                        selectOrder(currentOrderId); // This will now also clear the details if status is 'Entregado'
+                        renderDeliveredOrders();
+                        renderOrders(); // Add this line to refresh the active orders list
+                    }
+                });
+            });
+
+            // Sends a chat message from local to repartidor
+            sendChatBtnLocalRepartidor.addEventListener('click', () => {
+                if (!currentOrderId) return;
+
+                const message = chatInputLocalRepartidor.value.trim();
+                if (message === '') return;
+
+                const orderIndex = orders.findIndex(order => order.id === currentOrderId);
+                if (orderIndex !== -1) {
+                    orders[orderIndex].localRepartidorChatHistory.push({ sender: 'local', message: message });
+                    saveData(); // Save data after sending message
+                    renderChat(orders[orderIndex].localRepartidorChatHistory, chatMessagesLocalRepartidor);
+                    renderChat(orders[orderIndex].localRepartidorChatHistory, chatMessagesRepartidorLocal);
+                    chatInputLocalRepartidor.value = '';
+
+                    // Simulate repartidor response (simple for trial)
+                    setTimeout(() => {
+                        const randomResponses = [
+                            'Entendido, en ello estoy.',
+                            'Recibido.',
+                            'Ok.',
+                            'Gracias por la información.',
+                            'De acuerdo.'
+                        ];
+                        const randomMessage = randomResponses[Math.floor(Math.random() * randomResponses.length)];
+                        orders[orderIndex].localRepartidorChatHistory.push({ sender: 'repartidor', message: randomMessage });
+                        saveData(); // Save data after simulated response
+                        renderChat(orders[orderIndex].localRepartidorChatHistory, chatMessagesLocalRepartidor);
+                        renderChat(orders[orderIndex].localRepartidorChatHistory, chatMessagesRepartidorLocal);
+                    }, 1500);
+                }
+            });
+
+            // Use preset messages for local-repartidor chat (NO "Entregado" button here)
+            presetMessageBtnsLocal.forEach(button => {
+                button.addEventListener('click', (e) => {
+                    chatInputLocalRepartidor.value = e.target.dataset.message;
+                    sendChatBtnLocalRepartidor.click();
+                });
+            });
+
+            // Allow sending message with Enter key for local-repartidor chat
+            chatInputLocalRepartidor.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    sendChatBtnLocalRepartidor.click();
+                }
+            });
+
+            // Sends a chat message from repartidor to cliente
+            sendChatBtnRepartidorCliente.addEventListener('click', () => {
+                if (!currentOrderId) return;
+
+                const message = chatInputRepartidorCliente.value.trim();
+                if (message === '') return;
+
+                const orderIndex = orders.findIndex(order => order.id === currentOrderId);
+                if (orderIndex !== -1) {
+                    // Simulate repartidor sending message to client
+                    orders[orderIndex].repartidorClienteChatHistory.push({ sender: 'repartidor', message: message });
+                    saveData(); // Save data after sending message
+                    renderChat(orders[orderIndex].repartidorClienteChatHistory, chatMessagesRepartidorCliente);
+                    chatInputRepartidorCliente.value = '';
+
+                    // Simulate client response (simple for trial)
+                    setTimeout(() => {
+                        const randomResponses = [
+                            'Ok, estoy esperando!',
+                            'Perfecto, gracias.',
+                            'De acuerdo, te veo en un momento.',
+                            'Gracias por avisar!'
+                        ];
+                        const randomMessage = randomResponses[Math.floor(Math.random() * randomResponses.length)];
+                        orders[orderIndex].repartidorClienteChatHistory.push({ sender: 'cliente', message: randomMessage });
+                        saveData(); // Save data after simulated response
+                        renderChat(orders[orderIndex].repartidorClienteChatHistory, chatMessagesRepartidorCliente);
+                    }, 1500);
+                }
+            });
+
+            // Use preset messages for repartidor-cliente chat (now including new time estimates)
+            presetMessageBtnsCliente.forEach(button => {
+                button.addEventListener('click', (e) => {
+                    chatInputRepartidorCliente.value = e.target.dataset.message;
+                    sendChatBtnRepartidorCliente.click();
+                    playClientNotificationSound();
+                });
+            });
+
+            // Allow sending message with Enter key for repartidor-cliente chat
+            chatInputRepartidorCliente.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    sendChatBtnRepartidorCliente.click();
+                }
+            });
+
+            // NEW: Sends a chat message from repartidor to local (from the new chat section)
+            sendChatBtnRepartidorLocal.addEventListener('click', () => {
+                if (!currentOrderId) return;
+
+                const message = chatInputRepartidorLocal.value.trim();
+                if (message === '') return;
+
+                const orderIndex = orders.findIndex(order => order.id === currentOrderId);
+                if (orderIndex !== -1) {
+                    orders[orderIndex].localRepartidorChatHistory.push({ sender: 'repartidor', message: message });
+                    saveData(); // Save data after sending message
+                    renderChat(orders[orderIndex].localRepartidorChatHistory, chatMessagesRepartidorLocal);
+                    renderChat(orders[orderIndex].localRepartidorChatHistory, chatMessagesLocalRepartidor);
+                    chatInputRepartidorLocal.value = '';
+
+                    // Simulate local response (simple for trial)
+                    setTimeout(() => {
+                        const randomResponses = [
+                            'Entendido, gracias por la información.',
+                            'Ok, lo reviso.',
+                            'Recibido, gracias.'
+                        ];
+                        const randomMessage = randomResponses[Math.floor(Math.random() * randomResponses.length)];
+                        orders[orderIndex].localRepartidorChatHistory.push({ sender: 'local', message: randomMessage });
+                        saveData(); // Save data after simulated response
+                        renderChat(orders[orderIndex].localRepartidorChatHistory, chatMessagesRepartidorLocal);
+                        renderChat(orders[orderIndex].localRepartidorChatHistory, chatMessagesLocalRepartidor);
+                    }, 1500);
+                }
+            });
+
+            // NEW: Use preset messages for repartidor-local chat (including "Entregado" action)
+            presetMessageBtnsRepartidorLocal.forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const action = e.target.dataset.action;
+                    const message = e.target.dataset.message;
+                    const newStatus = e.target.dataset.newStatus; // Get the new status from data-new-status
+
+                    if (action === 'deliver_order_repartidor_local') {
+                        if (!currentOrderId) return;
+
+                        const orderIndex = orders.findIndex(order => order.id === currentOrderId);
+                        if (orderIndex !== -1) {
+                            orders[orderIndex].localRepartidorChatHistory.push({ sender: 'repartidor', message: message });
+                            orders[orderIndex].status = 'Entregado';
+                            orders[orderIndex].horaEntregado = new Date().toISOString();
+                            saveData(); // Save data after status update (delivery)
+                            
+                            // Clear order details and show "no order selected" message
+                            currentOrderId = null; // Clear selected order
+                            orderDetails.classList.add('hidden');
+                            noOrderSelected.classList.remove('hidden');
+
+                            renderDeliveredOrders();
+                            renderOrders(); // Add this line to refresh the active orders list
+                            playDoubleBellSound();
+                            
+                            const assignedDriver = drivers.find(d => d.id === orders[orderIndex].assignedDriverId);
+                            if (assignedDriver && assignedDriver.type === 'Externo') {
+                                setTimeout(() => {
+                                    alert('El chat con el repartidor externo se ha desactivado tras la entrega.');
+                                }, 500);
+                            }
+                        }
+                    } else if (action === 'update_status_from_repartidor_chat') { // Handle new status updates from repartidor chat
+                        if (!currentOrderId) return;
+                        const orderIndex = orders.findIndex(order => order.id === currentOrderId);
+
+                        if (orderIndex !== -1 && newStatus) {
+                            orders[orderIndex].localRepartidorChatHistory.push({ sender: 'repartidor', message: message });
+                            orders[orderIndex].status = newStatus; // Update the order status
+                            saveData();
+                            selectOrder(currentOrderId); // Re-render to reflect new status
+                            playBellSound(); // Play a sound for status update
+                        }
+                    }
+                    else {
+                        chatInputRepartidorLocal.value = message;
+                        sendChatBtnRepartidorLocal.click();
+                        playAlertSound();
+                    }
+                });
+            });
+
+            // NEW: Allow sending message with Enter key for repartidor-local chat
+            chatInputRepartidorLocal.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    sendChatBtnRepartidorLocal.click();
+                }
+            });
+
+            // --- Export Delivered Orders to JSON ---
+            exportDeliveredOrdersBtn.addEventListener('click', () => {
+                const deliveredOrders = orders.filter(order => order.status === 'Entregado');
+                
+                // Map to create a new array of objects with only desired fields and formatted times
+                const exportableOrders = deliveredOrders.map(order => {
+                    const assignedDriver = drivers.find(d => d.id === order.assignedDriverId);
+                    const driverName = assignedDriver ? assignedDriver.name : 'N/A';
+                    return {
+                        id: order.id,
+                        customer: order.customer,
+                        address: order.address,
+                        item: order.item,
+                        price: order.price,
+                        status: order.status,
+                        assignedDriver: driverName,
+                        horaRecibido: formatTimeForJSON(order.horaRecibido),
+                        horaEntregado: formatTimeForJSON(order.horaEntregado)
+                    };
+                });
+
+                const jsonString = JSON.stringify(exportableOrders, null, 2); // Pretty print JSON
+
+                const blob = new Blob([jsonString], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'pedidos_entregados.json';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            });
+
+
+            // Reset App functionality
+            resetAppBtn.addEventListener('click', () => {
+                localStorage.clear(); // Clear all stored data from localStorage
+                loadData(); // Reload initial mock data
+                currentOrderId = null; // Reset selected order
+                noOrderSelected.classList.remove('hidden');
+                orderDetails.classList.add('hidden');
+                renderOrders(); // Re-render orders list
+                renderDeliveredOrders(); // Also re-render delivered orders
+                alert('La aplicación de prueba ha sido reiniciada.');
+            });
+
+            // --- New Order Creation Logic ---
+            // Event listener for the "Nuevo Pedido" button to show the section
+            newOrderBtn.addEventListener('click', (e) => {
+                e.preventDefault(); // Prevent default anchor behavior (scrolling)
+                createOrderSection.classList.remove('hidden'); // Show the section
+                createOrderSection.scrollIntoView({ behavior: 'smooth' }); // Scroll to it
+            });
+
+            // Event listener for the new "Cancelar" button
+            cancelNewOrderBtn.addEventListener('click', () => {
+                createOrderSection.classList.add('hidden'); // Hide the section
+                // Clear form fields
+                newCustomerNameInput.value = '';
+                newAddressInput.value = '';
+                newItemInput.value = '';
+                newPriceInput.value = '';
+            });
+
+            newOrderForm.addEventListener('submit', (e) => {
+                e.preventDefault(); // Prevent default form submission
+
+                const customerName = newCustomerNameInput.value.trim();
+                const address = newAddressInput.value.trim();
+                const item = newItemInput.value.trim();
+                const price = parseFloat(newPriceInput.value);
+
+                if (!customerName || !address || !item || isNaN(price) || price < 0) {
+                    alert('Por favor, completa todos los campos correctamente. Asegúrate de que el precio sea un número válido.');
+                    return;
+                }
+
+                const newOrderId = 'DL' + Date.now().toString().slice(-5); // Simple unique ID
+                const newOrder = {
+                    id: newOrderId,
+                    customer: customerName,
+                    address: address,
+                    item: item,
+                    price: price,
+                    status: 'Pendiente',
+                    assignedDriverId: null,
+                    localRepartidorChatHistory: [],
+                    repartidorClienteChatHistory: [],
+                    horaRecibido: new Date().toISOString(),
+                    horaEntregado: null
+                };
+
+                orders.push(newOrder);
+                saveData(); // Save data after creating a new order
+                renderOrders();
+                alert(`Pedido #${newOrderId} creado exitosamente.`);
+
+                // Clear form fields and hide the section after successful creation
+                newCustomerNameInput.value = '';
+                newAddressInput.value = '';
+                newItemInput.value = '';
+                newPriceInput.value = '';
+                createOrderSection.classList.add('hidden'); // Hide the section after creation
+                
+                // Scroll to the top of the orders list to show the new order
+                activeOrdersList.scrollIntoView({ behavior: 'smooth' });
+            });
+
+            // --- Initial Load ---
+            loadData(); // Load data when the page loads
+            renderOrders();
+            renderDeliveredOrders();
+        }); // End of DOMContentLoaded
+    </script>
+</body>
+</html>
