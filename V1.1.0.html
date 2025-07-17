@@ -1,0 +1,1310 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demo de Comunicación de Delivery</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- Tone.js CDN for sound generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <style>
+        body {
+            font-family: "Inter", sans-serif;
+            background-color: #f0f2f5;
+        }
+        /* Custom scrollbar for chat windows */
+        .chat-window::-webkit-scrollbar, .history-messages::-webkit-scrollbar {
+            width: 8px;
+        }
+        .chat-window::-webkit-scrollbar-track, .history-messages::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        .chat-window::-webkit-scrollbar-thumb, .history-messages::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 10px;
+        }
+        .chat-window::-webkit-scrollbar-thumb:hover, .history-messages::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        .modal {
+            display: none; /* Hidden by default */
+            position: fixed; /* Stay in place */
+            z-index: 1000; /* Sit on top */
+            left: 0;
+            top: 0;
+            width: 100%; /* Full width */
+            height: 100%; /* Full height */
+            overflow: auto; /* Enable scroll if needed */
+            background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: auto;
+            padding: 20px;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 800px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            position: relative;
+        }
+        .close-button {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close-button:hover,
+        .close-button:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8 flex items-center justify-center min-h-screen">
+    <div class="container mx-auto bg-white shadow-lg rounded-xl p-6 md:p-10 max-w-6xl w-full">
+        <h1 class="text-3xl md:text-4xl font-bold text-center text-gray-800 mb-6">
+            Demo: Comunicación en Tiempo Real
+        </h1>
+        <p class="text-center text-gray-600 mb-8 max-w-2xl mx-auto">
+            Experimenta cómo nuestro sistema optimiza la comunicación entre el local y el repartidor para una entrega fluida.
+        </p>
+
+        <div class="flex flex-col md:flex-row gap-6 md:gap-8 mb-8 justify-center">
+            <!-- Local Panel -->
+            <div class="flex-1 bg-gradient-to-br from-blue-500 to-blue-600 p-6 rounded-lg shadow-md text-white flex flex-col">
+                <h2 class="text-2xl font-semibold mb-4 flex items-center">
+                    <i class="fas fa-store mr-3"></i> Local
+                </h2>
+                <div class="bg-blue-700 bg-opacity-70 p-4 rounded-lg flex-grow mb-4 chat-window overflow-y-auto h-48" id="local-chat">
+                    <div class="text-sm text-blue-100">
+                        <p><strong>Sistema:</strong> Listo para generar un nuevo pedido.</p>
+                    </div>
+                </div>
+                <!-- New Order Generation -->
+                <div class="mb-4">
+                    <button id="generate-order-btn" class="w-full px-4 py-2 bg-blue-800 hover:bg-blue-900 rounded-md shadow-lg transition duration-200" disabled>
+                        Generar Nuevo Pedido
+                    </button>
+                </div>
+                <!-- Local Actions (Pedido Listo) -->
+                <div class="flex items-center mb-4" id="local-action-section" style="display: none;">
+                    <select id="local-action" class="flex-grow p-2 rounded-md bg-blue-700 text-white border border-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-400">
+                        <option value="listo">Marcar como 'Listo para retirar'</option>
+                    </select>
+                    <button id="send-local-action-btn" class="ml-3 px-4 py-2 bg-blue-800 hover:bg-blue-900 rounded-md shadow-lg transition duration-200">
+                        Enviar Acción
+                    </button>
+                </div>
+                <!-- Local Actions (Respuestas a Repartidor) -->
+                <div class="flex items-center mt-2" id="local-response-section" style="display: none;">
+                    <select id="local-response-action" class="flex-grow p-2 rounded-md bg-blue-700 text-white border border-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-400">
+                        <option value="">Responder a Repartidor</option>
+                        <option value="Ya lo llamo y te aviso">Ya lo llamo y te aviso</option>
+                        <option value="Dice que ahí sale">Dice que ahí sale</option>
+                        <option value="Vuelve">Vuelve</option>
+                        <option value="Te falta mucho?">¿Te falta mucho?</option>
+                    </select>
+                    <button id="send-local-response-btn" class="ml-3 px-4 py-2 bg-blue-800 hover:bg-blue-900 rounded-md shadow-lg transition duration-200">
+                        Enviar Respuesta
+                    </button>
+                </div>
+                <!-- Assign Repartidor Section (initially hidden) -->
+                <div class="flex items-center" id="assign-repartidor-section" style="display: none;">
+                    <select id="assign-repartidor-select" class="flex-grow p-2 rounded-md bg-blue-700 text-white border border-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-400">
+                        <!-- Repartidores will be populated here by JS -->
+                    </select>
+                    <button id="assign-repartidor-btn" class="ml-3 px-4 py-2 bg-blue-800 hover:bg-blue-900 rounded-md shadow-lg transition duration-200">
+                        Asignar
+                    </button>
+                </div>
+            </div>
+
+            <!-- Removed Cliente Panel -->
+            <!-- The client panel and its related elements have been removed as per your request -->
+        </div>
+
+        <!-- Repartidores Chats Container -->
+        <div id="repartidores-chats-container" class="flex flex-col md:flex-row flex-wrap gap-6 md:gap-8 mb-8" style="display: none;">
+            <h2 class="text-2xl font-bold text-gray-800 w-full mb-4">Chats de Repartidores Activos</h2>
+            <p id="no-repartidor-chats" class="text-gray-600 w-full text-center">No hay repartidores asignados a pedidos activos.</p>
+            <!-- Individual repartidor chat panels will be dynamically added here -->
+        </div>
+
+        <!-- Pedidos Generados Section -->
+        <div id="generated-orders-container" class="bg-gray-100 p-6 rounded-lg shadow-md mb-8" style="display: none;">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">Pedidos Generados</h2>
+            <div id="orders-list-display" class="space-y-4">
+                <p class="text-gray-600 text-center">No hay pedidos generados aún.</p>
+            </div>
+        </div>
+
+        <div class="text-center mt-8">
+            <button id="start-demo-btn" class="px-8 py-4 bg-indigo-600 text-white font-bold text-lg rounded-full shadow-xl hover:bg-indigo-700 transition duration-300 transform hover:scale-105">
+                Iniciar Demo
+            </button>
+            <button id="reset-demo-btn" class="ml-4 px-8 py-4 bg-gray-400 text-white font-bold text-lg rounded-full shadow-xl hover:bg-gray-500 transition duration-300 transform hover:scale-105">
+                Reiniciar Demo
+            </button>
+            <button id="open-history-modal-btn" class="ml-4 px-8 py-4 bg-gray-700 text-white font-bold text-lg rounded-full shadow-xl hover:bg-gray-800 transition duration-300 transform hover:scale-105">
+                Ver Historial de Pedidos
+            </button>
+        </div>
+    </div>
+
+    <!-- History Modal -->
+    <div id="historyModal" class="modal">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-bold text-gray-800">Historial de Pedidos</h2>
+                <div class="flex gap-2">
+                    <button id="save-history-modal-btn" class="px-4 py-2 bg-blue-600 text-white font-semibold rounded-md shadow-md hover:bg-blue-700 transition duration-200">
+                        Guardar Pedidos
+                    </button>
+                    <button id="clear-history-modal-btn" class="px-4 py-2 bg-red-600 text-white font-semibold rounded-md shadow-md hover:bg-red-700 transition duration-200">
+                        Borrar Historial
+                    </button>
+                    <span id="close-history-modal-btn" class="close-button">&times;</span>
+                </div>
+            </div>
+            <div class="flex flex-col md:flex-row gap-4">
+                <!-- Order List -->
+                <div class="w-full md:w-1/3 bg-gray-100 p-4 rounded-md overflow-y-auto h-96">
+                    <h3 class="text-lg font-semibold mb-2">Pedidos Anteriores</h3>
+                    <ul id="order-list" class="space-y-2">
+                        <!-- Orders will be loaded here -->
+                        <li class="text-gray-500">Cargando pedidos...</li>
+                    </ul>
+                </div>
+                <!-- Conversation Details -->
+                <div class="w-full md:w-2/3 bg-gray-100 p-4 rounded-md overflow-y-auto h-96 history-messages">
+                    <h3 class="text-lg font-semibold mb-2">Conversación del Pedido: <span id="selected-order-id">Ninguno</span></h3>
+                    <div id="history-messages-display" class="space-y-2 text-sm">
+                        <p class="text-gray-500">Selecciona un pedido para ver su conversación.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Confirmation Modal -->
+    <div id="customConfirmModal" class="modal">
+        <div class="modal-content max-w-sm p-6 text-center">
+            <p id="confirm-message" class="text-lg font-semibold text-gray-800 mb-6"></p>
+            <div class="flex justify-center gap-4">
+                <button id="confirm-yes-btn" class="px-6 py-2 bg-red-600 text-white rounded-md shadow-md hover:bg-red-700 transition duration-200">Sí</button>
+                <button id="confirm-no-btn" class="px-6 py-2 bg-gray-300 text-gray-800 rounded-md shadow-md hover:bg-gray-400 transition duration-200">No</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        // Constants for localStorage
+        const LOCAL_STORAGE_KEY = 'deliveryAppData';
+        const MAX_ORDERS = 10; // Maximum number of orders that can be generated
+        const MAX_ORDERS_PER_REPARTIDOR = 5; // New constant: Maximum orders per repartidor
+
+        // Get chat elements
+        const localChat = document.getElementById('local-chat');
+        const repartidoresChatsContainer = document.getElementById('repartidores-chats-container');
+        const noRepartidorChatsMessage = document.getElementById('no-repartidor-chats');
+
+        // Get action select elements
+        const localActionSelect = document.getElementById('local-action');
+        const localResponseActionSelect = document.getElementById('local-response-action');
+
+        // Get buttons by their IDs
+        const generateOrderButton = document.getElementById('generate-order-btn');
+        const sendLocalActionButton = document.getElementById('send-local-action-btn');
+        const sendLocalResponseButton = document.getElementById('send-local-response-btn');
+        const assignRepartidorButton = document.getElementById('assign-repartidor-btn');
+        const startDemoButton = document.getElementById('start-demo-btn');
+        const resetDemoButton = document.getElementById('reset-demo-btn');
+        const openHistoryModalButton = document.getElementById('open-history-modal-btn');
+        const closeHistoryModalButton = document.getElementById('close-history-modal-btn');
+        const clearHistoryModalButton = document.getElementById('clear-history-modal-btn');
+        const saveHistoryModalButton = document.getElementById('save-history-modal-btn');
+
+        // History Modal Elements
+        const historyModal = document.getElementById('historyModal');
+        const orderList = document.getElementById('order-list');
+        const selectedOrderIdSpan = document.getElementById('selected-order-id');
+        const historyMessagesDisplay = document.getElementById('history-messages-display');
+
+        // Elements to control visibility
+        const localActionSection = document.getElementById('local-action-section');
+        const localResponseSection = document.getElementById('local-response-section');
+
+        // Elements for generated orders display
+        const generatedOrdersContainer = document.getElementById('generated-orders-container');
+        const ordersListDisplay = document.getElementById('orders-list-display');
+
+        // Global state for the demo
+        let demoRunning = false;
+        let currentOrderIdToAssign = null; // The ID of the order most recently generated and waiting for assignment
+        let orderCount = 0; // Tracks the total number of orders generated
+        const availableRepartidores = ['Juan', 'Maria', 'Pedro', 'Ana']; // Example repartidores
+
+        // Object to store references to dynamically created repartidor chat elements
+        // Key: repartidorName, Value: { panelDiv: HTMLElement, chatDiv: HTMLElement, actionSelect: HTMLElement, problemActionSelect: HTMLElement, addressProblemActionSelect: HTMLElement, assignedOrders: [], orderSelect: HTMLElement }
+        const repartidorChatElements = {}; // Tracks which repartidor is handling which order and their UI elements
+
+        // --- Color Palettes for Repartidores ---
+        const repartidorColorPalette = [
+            {
+                prefix: 'green',
+                panelGradient: ['from-green-500', 'to-green-600'],
+                chatBg: 'bg-green-700 bg-opacity-70',
+                senderText: 'text-green-200',
+                messageText: 'text-green-100',
+                buttonBg: 'bg-green-800',
+                buttonHover: 'hover:bg-green-900'
+            },
+            {
+                prefix: 'red',
+                panelGradient: ['from-red-500', 'to-red-600'],
+                chatBg: 'bg-red-700', // Removed bg-opacity-70 for better contrast with red
+                senderText: 'text-red-200',
+                messageText: 'text-red-100',
+                buttonBg: 'bg-red-800',
+                buttonHover: 'hover:bg-red-900'
+            },
+            {
+                prefix: 'purple',
+                panelGradient: ['from-purple-500', 'to-purple-600'],
+                chatBg: 'bg-purple-700 bg-opacity-70',
+                senderText: 'text-purple-200',
+                messageText: 'text-purple-100',
+                buttonBg: 'bg-purple-800',
+                buttonHover: 'hover:bg-purple-900'
+            },
+            {
+                prefix: 'teal',
+                panelGradient: ['from-teal-500', 'to-teal-600'],
+                chatBg: 'bg-teal-700 bg-opacity-70',
+                senderText: 'text-teal-200',
+                messageText: 'text-teal-100',
+                buttonBg: 'bg-teal-800',
+                buttonHover: 'hover:bg-teal-900'
+            },
+            {
+                prefix: 'orange',
+                panelGradient: ['from-orange-500', 'to-orange-600'],
+                chatBg: 'bg-orange-700 bg-opacity-70',
+                senderText: 'text-orange-200',
+                messageText: 'text-orange-100',
+                buttonBg: 'bg-orange-800',
+                buttonHover: 'hover:bg-orange-900'
+            },
+            {
+                prefix: 'pink',
+                panelGradient: ['from-pink-500', 'to-pink-600'],
+                chatBg: 'bg-pink-700 bg-opacity-70',
+                senderText: 'text-pink-200',
+                messageText: 'text-pink-100',
+                buttonBg: 'bg-pink-800',
+                buttonHover: 'hover:bg-pink-900'
+            },
+            {
+                prefix: 'emerald',
+                panelGradient: ['from-emerald-500', 'to-emerald-600'],
+                chatBg: 'bg-emerald-700 bg-opacity-70',
+                senderText: 'text-emerald-200',
+                messageText: 'text-emerald-100',
+                buttonBg: 'bg-emerald-800',
+                buttonHover: 'hover:bg-emerald-900'
+            }
+        ];
+        let repartidorColorIndex = 0; // To cycle through the colors
+
+        // --- Tone.js Sound Initialization ---
+        // Create a simple synth for the "ready" sound
+        const readySynth = new Tone.Synth().toDestination();
+        // Create a simple synth for the "report" sound
+        const reportSynth = new Tone.Synth().toDestination();
+
+        // Function to play the "ready" sound
+        function playReadySound() {
+            readySynth.triggerAttackRelease("C5", "8n"); // Plays a C5 note for an 8th note duration
+        }
+
+        // Function to play the "report" sound
+        function playReportSound() {
+            reportSynth.triggerAttackRelease("C4", "16n"); // Plays a C4 note for a 16th note duration
+        }
+
+        // --- localStorage Helper Functions ---
+
+        // Reads data from localStorage, parses it, or returns an empty structure if not found.
+        function getAppData() {
+            const data = localStorage.getItem(LOCAL_STORAGE_KEY);
+            return data ? JSON.parse(data) : { orders: {} };
+        }
+
+        // Stringifies the data and saves it to localStorage.
+        function setAppData(data) {
+            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data));
+        }
+
+        // --- Data Operations (using localStorage) ---
+
+        // Function to save/update an order document
+        function saveOrder(orderId, data) {
+            const appData = getAppData();
+            if (!appData.orders[orderId]) {
+                appData.orders[orderId] = { messages: [], createdAt: new Date().toISOString() };
+            }
+            Object.assign(appData.orders[orderId], data);
+            appData.orders[orderId].lastUpdated = new Date().toISOString();
+            setAppData(appData);
+            console.log("Order saved/updated (localStorage):", orderId);
+            updateGeneratedOrdersDisplay(); // Call after any order update
+        }
+
+        // Function to add a message to an order's conversation
+        function addMessageToOrder(orderId, sender, messageContent, type) {
+            const appData = getAppData();
+            if (appData.orders[orderId]) {
+                appData.orders[orderId].messages.push({
+                    sender: sender,
+                    message: messageContent,
+                    type: type,
+                    timestamp: new Date().toISOString()
+                });
+                setAppData(appData);
+                console.log("Message added to order (localStorage):", orderId);
+            } else {
+                console.error("Order not found for adding message:", orderId);
+            }
+        }
+
+        // --- History Display (using localStorage) ---
+
+        // Displays orders from localStorage
+        function listenForOrders() {
+            const appData = getAppData();
+            orderList.innerHTML = ''; // Clear current list
+
+            const ordersArray = Object.keys(appData.orders).map(key => ({ id: key, ...appData.orders[key] }));
+            ordersArray.sort((a, b) => new Date(b.lastUpdated) - new Date(a.lastUpdated)); // Sort by lastUpdated
+
+            if (ordersArray.length === 0) {
+                orderList.innerHTML = '<li class="text-gray-500">No hay pedidos registrados.</li>';
+                return;
+            }
+
+            ordersArray.forEach((order) => {
+                const listItem = document.createElement('li');
+                listItem.classList.add('p-2', 'bg-white', 'rounded-md', 'shadow-sm', 'cursor-pointer', 'hover:bg-gray-200', 'transition', 'duration-150');
+                listItem.innerHTML = `<strong>${order.id}</strong> - Estado: ${order.status || 'Desconocido'}`;
+                listItem.addEventListener('click', () => selectOrder(order.id));
+                orderList.appendChild(listItem);
+            });
+        }
+
+        // Displays messages for a selected order from localStorage
+        function listenForOrderMessages(orderId) {
+            const appData = getAppData();
+            const order = appData.orders[orderId];
+
+            selectedOrderIdSpan.textContent = orderId;
+            historyMessagesDisplay.innerHTML = ''; // Clear current messages
+
+            if (!order || order.messages.length === 0) {
+                historyMessagesDisplay.innerHTML = '<p class="text-gray-500">Selecciona un pedido para ver su conversación.</p>';
+                return;
+            }
+
+            // Sort messages by timestamp
+            const sortedMessages = [...order.messages].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+            sortedMessages.forEach((messageData) => {
+                const messageDiv = document.createElement('div');
+                messageDiv.classList.add('mb-1');
+                const timestamp = messageData.timestamp ? new Date(messageData.timestamp).toLocaleTimeString('es-ES') : '';
+                messageDiv.innerHTML = `<p><strong>${messageData.sender}</strong> (${timestamp}): <span class="message-content">${messageData.message}</span></p>`;
+                historyMessagesDisplay.appendChild(messageDiv);
+            });
+            historyMessagesDisplay.scrollTop = historyMessagesDisplay.scrollHeight; // Scroll to bottom
+        }
+
+        // --- Demo Logic ---
+
+        // Function to add a message to a chat window (and save to localStorage)
+        function addMessage(chatElement, sender, message, type = 'system', saveToLocalStorage = true, orderIdForHistory = null) {
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('text-sm', 'mb-1');
+
+            let senderHtml = '';
+            let messageColorClass = '';
+
+            if (chatElement === localChat) {
+                // For local chat, determine sender color based on who sent the message
+                if (sender === 'Local' || sender === 'Sistema') {
+                    senderHtml = `<strong class="text-blue-200">${sender}</strong>`;
+                    messageColorClass = 'text-blue-100';
+                } else { // If repartidor sends message to local chat
+                    const repartidorPanel = document.querySelector(`[data-repartidor-name="${sender}"]`);
+                    if (repartidorPanel) {
+                        const colorPrefix = repartidorPanel.dataset.colorPrefix;
+                        const colorConfig = repartidorColorPalette.find(c => c.prefix === colorPrefix);
+                        if (colorConfig) {
+                            // Apply background and white text to the sender's name
+                            senderHtml = `<strong class="px-2 py-1 rounded-md text-white ${colorConfig.chatBg.split(' ')[0]}">${sender}</strong>`;
+                            messageColorClass = 'text-blue-100'; // Message content remains blue-100 for local chat
+                        } else {
+                            senderHtml = `<strong class="text-gray-200">${sender}</strong>`;
+                            messageColorClass = 'text-gray-100';
+                        }
+                    } else {
+                        senderHtml = `<strong class="text-gray-200">${sender}</strong>`;
+                        messageColorClass = 'text-gray-100';
+                    }
+                }
+            } else { // For repartidor chats
+                const repartidorPanel = chatElement.closest('[data-color-prefix]');
+                if (repartidorPanel) {
+                    const colorPrefix = repartidorPanel.dataset.colorPrefix;
+                    // Find the corresponding color object in the palette
+                    const colorConfig = repartidorColorPalette.find(c => c.prefix === colorPrefix);
+                    if (colorConfig) {
+                        senderHtml = `<strong class="${colorConfig.senderText}">${sender}</strong>`;
+                        messageColorClass = colorConfig.messageText;
+                    } else {
+                        // Fallback if colorConfig not found (shouldn't happen with correct setup)
+                        senderHtml = `<strong class="text-gray-200">${sender}</strong>`;
+                        messageColorClass = 'text-gray-100';
+                    }
+                } else {
+                    // Fallback for system messages not tied to a specific repartidor panel
+                    senderHtml = `<strong class="text-gray-200">${sender}</strong>`;
+                    messageColorClass = 'text-gray-100';
+                }
+            }
+
+            messageDiv.innerHTML = `<p>${senderHtml}: <span class="${messageColorClass}">${message}</span></p>`;
+            chatElement.appendChild(messageDiv);
+            chatElement.scrollTop = chatElement.scrollHeight; // Scroll to bottom to show latest message
+
+            if (saveToLocalStorage && orderIdForHistory) {
+                addMessageToOrder(orderIdForHistory, sender, message, type);
+            }
+        }
+
+        // Helper function to generate a simple unique order ID
+        function generateUniqueOrderId() {
+            return 'PED-' + Math.floor(1000 + Math.random() * 9000); // Generates a random ID like PED-1234
+        }
+
+        // Function to handle generating a new order
+        function generateNewOrder() {
+            if (!demoRunning) {
+                addMessage(localChat, 'Sistema', 'Por favor, inicia la demo primero.', 'system', false);
+                return;
+            }
+            if (orderCount >= MAX_ORDERS) {
+                addMessage(localChat, 'Sistema', `Se ha alcanzado el límite de ${MAX_ORDERS} pedidos generados. Reinicia la demo para generar más.`, 'system', false);
+                generateOrderButton.disabled = true; // Ensure button is disabled
+                return;
+            }
+            if (currentOrderIdToAssign) {
+                addMessage(localChat, 'Sistema', `Ya hay un pedido (${currentOrderIdToAssign}) esperando ser asignado. Asígnalo primero.`, 'system', false);
+                return;
+            }
+
+            const newOrderId = generateUniqueOrderId();
+            currentOrderIdToAssign = newOrderId; // Set the new order ID to be assigned
+
+            // Save initial order state to localStorage
+            saveOrder(newOrderId, {
+                status: 'recibido',
+                repartidor: null
+            });
+
+            orderCount++; // Increment the total generated order count
+            if (orderCount >= MAX_ORDERS) {
+                generateOrderButton.disabled = true;
+            }
+
+            addMessage(localChat, 'Local', `Nuevo pedido ${newOrderId} generado y recibido.`, 'local', true, newOrderId); // Save this message
+            
+            // Make elements visible after generating a new order
+            localActionSection.style.display = 'flex';
+            localResponseSection.style.display = 'flex';
+            repartidoresChatsContainer.style.display = 'flex';
+            generatedOrdersContainer.style.display = 'block'; // Show the generated orders section
+
+            // Show the assign repartidor section and populate the dropdown
+            document.getElementById('assign-repartidor-section').style.display = 'flex';
+            populateRepartidorSelect();
+            updateGeneratedOrdersDisplay(); // Update display after new order
+        }
+
+        // Function to populate the repartidor selection dropdown
+        function populateRepartidorSelect() {
+            const select = document.getElementById('assign-repartidor-select');
+            select.innerHTML = '<option value="">Seleccionar Repartidor</option>'; // Default placeholder option
+
+            // Filter available repartidores to only show those with less than MAX_ORDERS_PER_REPARTIDOR assigned orders
+            const appData = getAppData();
+            const repartidorOrderCounts = {};
+            Object.values(appData.orders).forEach(order => {
+                if (order.repartidor && order.status !== 'entregado' && order.status !== 'cancelado') { // Only count active orders
+                    repartidorOrderCounts[order.repartidor] = (repartidorOrderCounts[order.repartidor] || 0) + 1;
+                }
+            });
+
+            availableRepartidores.forEach(repartidor => {
+                const currentOrders = repartidorOrderCounts[repartidor] || 0;
+                if (currentOrders < MAX_ORDERS_PER_REPARTIDOR) {
+                    const option = document.createElement('option');
+                    option.value = repartidor;
+                    option.textContent = `${repartidor} (${currentOrders}/${MAX_ORDERS_PER_REPARTIDOR} pedidos)`;
+                    select.appendChild(option);
+                }
+            });
+
+            if (select.options.length <= 1) { // Only the "Seleccionar Repartidor" option
+                addMessage(localChat, 'Sistema', 'No hay repartidores disponibles para asignar en este momento o todos tienen el máximo de pedidos.', 'system', false);
+                assignRepartidorButton.disabled = true;
+            } else {
+                assignRepartidorButton.disabled = false;
+            }
+        }
+
+        // Function to handle assigning a repartidor to the current order
+        function assignRepartidor() {
+            const select = document.getElementById('assign-repartidor-select'); // Get reference to the select element
+            if (!demoRunning || !currentOrderIdToAssign) {
+                addMessage(localChat, 'Sistema', 'Primero genera un pedido antes de intentar asignar un repartidor.', 'system', false);
+                return;
+            }
+            const selectedRepartidor = select.value; // Use the correct reference
+            if (!selectedRepartidor) {
+                addMessage(localChat, 'Sistema', 'Por favor, selecciona un repartidor de la lista.', 'system', false);
+                return;
+            }
+
+            const appData = getAppData();
+            const repartidorOrders = Object.values(appData.orders).filter(
+                order => order.repartidor === selectedRepartidor && order.status !== 'entregado' && order.status !== 'cancelado'
+            );
+
+            if (repartidorOrders.length >= MAX_ORDERS_PER_REPARTIDOR) {
+                addMessage(localChat, 'Sistema', `El repartidor ${selectedRepartidor} ya tiene el máximo de ${MAX_ORDERS_PER_REPARTIDOR} pedidos asignados.`, 'system', false);
+                return;
+            }
+
+            const orderIdBeingAssigned = currentOrderIdToAssign; // Use the stored ID
+
+            // Update order in localStorage
+            saveOrder(orderIdBeingAssigned, {
+                status: 'asignado',
+                repartidor: selectedRepartidor
+            });
+
+            addMessage(localChat, 'Local', `Repartidor ${selectedRepartidor} asignado al pedido ${orderIdBeingAssigned}.`, 'local', true, orderIdBeingAssigned);
+
+            // Create or show the repartidor's individual chat panel
+            createRepartidorChatPanel(selectedRepartidor); // Create/show without specific orderId initially
+            
+            // Add the order to the repartidor's assigned orders list
+            if (!repartidorChatElements[selectedRepartidor].assignedOrders.includes(orderIdBeingAssigned)) {
+                repartidorChatElements[selectedRepartidor].assignedOrders.push(orderIdBeingAssigned);
+            }
+            updateRepartidorOrderDisplay(selectedRepartidor); // Update the display of assigned orders
+            populateRepartidorOrderSelect(selectedRepartidor); // Populate the order select for messages
+
+            // Reset currentOrderIdToAssign after successful assignment
+            currentOrderIdToAssign = null;
+
+            // Hide the assign repartidor section if no more orders to assign or no available repartidores
+            if (!currentOrderIdToAssign && select.options.length <= 1) { // Check if only placeholder is left
+                document.getElementById('assign-repartidor-section').style.display = 'none';
+            }
+            populateRepartidorSelect(); // Refresh available repartidores for new assignments
+        }
+
+        // Function to create a new repartidor chat panel dynamically
+        function createRepartidorChatPanel(repartidorName) {
+            // If panel already exists, just make it visible
+            if (repartidorChatElements[repartidorName]) {
+                repartidorChatElements[repartidorName].panelDiv.style.display = 'flex';
+                noRepartidorChatsMessage.style.display = 'none';
+                return;
+            }
+
+            // Get the next color from the palette
+            const colorConfig = repartidorColorPalette[repartidorColorIndex % repartidorColorPalette.length];
+            repartidorColorIndex++; // Increment for the next repartidor
+
+            const panelDiv = document.createElement('div');
+            panelDiv.id = `repartidor-panel-${repartidorName.replace(/\s/g, '-')}`; // Unique ID
+            // Apply gradient classes individually
+            panelDiv.classList.add('flex-1', 'p-6', 'rounded-lg', 'shadow-md', 'text-white', 'flex', 'flex-col', 'min-w-[300px]', ...colorConfig.panelGradient);
+            panelDiv.dataset.colorPrefix = colorConfig.prefix; // Store color prefix for message styling
+            panelDiv.dataset.repartidorName = repartidorName; // Store repartidor name for message styling in local chat
+
+            panelDiv.innerHTML = `
+                <h2 class="text-2xl font-semibold mb-4 flex items-center text-${colorConfig.prefix}-700">
+                    <i class="fas fa-motorcycle mr-3"></i> Repartidor: ${repartidorName}
+                </h2>
+                <div class="mb-2 text-sm text-${colorConfig.prefix}-700">
+                    <strong>Pedidos Asignados:</strong> <span id="repartidor-orders-${repartidorName.replace(/\s/g, '-')}" class="font-bold">Ninguno</span>
+                </div>
+                <div id="repartidor-chat-${repartidorName.replace(/\s/g, '-')}" class="${colorConfig.chatBg} p-4 rounded-lg flex-grow mb-4 chat-window overflow-y-auto h-48">
+                    <div class="text-sm ${colorConfig.messageText}">
+                        <p><strong>Sistema:</strong> Esperando asignación de pedido.</p>
+                    </div>
+                </div>
+                <!-- Order selection for messages -->
+                <div class="flex items-center mb-2">
+                    <select id="repartidor-order-select-${repartidorName.replace(/\s/g, '-')}" class="flex-grow p-2 rounded-md ${colorConfig.chatBg.replace('bg-opacity-70', '')} text-white border border-${colorConfig.prefix}-800 focus:outline-none focus:ring-2 focus:ring-${colorConfig.prefix}-400">
+                        <option value="">Selecciona Pedido</option>
+                    </select>
+                </div>
+                <div class="flex items-center">
+                    <select id="repartidor-action-${repartidorName.replace(/\s/g, '-')}" class="flex-grow p-2 rounded-md ${colorConfig.chatBg.replace('bg-opacity-70', '')} text-white border border-${colorConfig.prefix}-800 focus:outline-none focus:ring-2 focus:ring-${colorConfig.prefix}-400">
+                        <option value="recogido">Pedido recogido</option>
+                        <option value="en_camino">En camino</option>
+                        <option value="llegue">Estoy llegando</option>
+                        <option value="entregado">Pedido entregado</option>
+                    </select>
+                    <button data-repartidor="${repartidorName}" data-action-type="status" class="ml-3 px-4 py-2 ${colorConfig.buttonBg} ${colorConfig.buttonHover} rounded-md shadow-lg transition duration-200 send-repartidor-action-btn">
+                        Enviar
+                    </button>
+                </div>
+                <!-- Incidencias de Cliente Section -->
+                <div class="flex items-center mt-2">
+                    <select id="repartidor-problem-action-${repartidorName.replace(/\s/g, '-')}" class="flex-grow p-2 rounded-md ${colorConfig.chatBg.replace('bg-opacity-70', '')} text-white border border-${colorConfig.prefix}-800 focus:outline-none focus:ring-2 focus:ring-${colorConfig.prefix}-400">
+                        <option value="">Incidencias de Cliente</option>
+                        <option value="no atiende,llamalo">No atiende, llámalo</option>
+                        <option value="toco timbre y no sale">Toco timbre y no sale</option>
+                        <option value="lo llamo y tampoco atiende">Lo llamo y tampoco atiende</option>
+                        <option value="tarda mucho, avísale">Tarda mucho, avísale</option>
+                    </select>
+                    <button data-repartidor="${repartidorName}" data-action-type="problem" class="ml-3 px-4 py-2 bg-red-700 hover:bg-red-800 rounded-md shadow-lg transition duration-200 send-repartidor-problem-btn">
+                        Reportar
+                    </button>
+                </div>
+                <!-- Incidencias de Dirección Section -->
+                <div class="flex items-center mt-2">
+                    <select id="repartidor-address-problem-action-${repartidorName.replace(/\s/g, '-')}" class="flex-grow p-2 rounded-md ${colorConfig.chatBg.replace('bg-opacity-70', '')} text-white border border-${colorConfig.prefix}-800 focus:outline-none focus:ring-2 focus:ring-${colorConfig.prefix}-400">
+                        <option value="">Incidencias de Dirección</option>
+                        <option value="No aparece la altura">No aparece la altura</option>
+                        <option value="No puso el timbre, avisale que timbre">No puso el timbre, avisale que timbre</option>
+                        <option value="No puso el timbre, dile que salga">No puso el timbre, dile que salga</option>
+                    </select>
+                    <button data-repartidor="${repartidorName}" data-action-type="address-problem" class="ml-3 px-4 py-2 bg-red-700 hover:bg-red-800 rounded-md shadow-lg transition duration-200 send-repartidor-address-problem-btn">
+                        Reportar
+                    </button>
+                </div>
+            `;
+            repartidoresChatsContainer.appendChild(panelDiv);
+            noRepartidorChatsMessage.style.display = 'none'; // Hide the "no chats" message
+
+            // Store references to the new elements
+            repartidorChatElements[repartidorName] = {
+                panelDiv: panelDiv,
+                chatDiv: document.getElementById(`repartidor-chat-${repartidorName.replace(/\s/g, '-')}`),
+                assignedOrdersDisplay: document.getElementById(`repartidor-orders-${repartidorName.replace(/\s/g, '-')}`), // New element for assigned orders display
+                orderSelect: document.getElementById(`repartidor-order-select-${repartidorName.replace(/\s/g, '-')}`), // New element for order selection
+                actionSelect: document.getElementById(`repartidor-action-${repartidorName.replace(/\s/g, '-')}`),
+                problemActionSelect: document.getElementById(`repartidor-problem-action-${repartidorName.replace(/\s/g, '-')}`),
+                addressProblemActionSelect: document.getElementById(`repartidor-address-problem-action-${repartidorName.replace(/\s/g, '-')}`),
+                assignedOrders: [] // Initialize as an empty array
+            };
+
+            // Attach event listeners to the new buttons
+            const newSendButton = panelDiv.querySelector('.send-repartidor-action-btn');
+            newSendButton.addEventListener('click', (event) => sendRepartidorAction(event.target.dataset.repartidor));
+
+            const newProblemButton = panelDiv.querySelector('.send-repartidor-problem-btn');
+            newProblemButton.addEventListener('click', (event) => sendRepartidorProblem(event.target.dataset.repartidor));
+
+            const newAddressProblemButton = panelDiv.querySelector('.send-repartidor-address-problem-btn');
+            newAddressProblemButton.addEventListener('click', (event) => sendRepartidorAddressProblem(event.target.dataset.repartidor));
+        }
+
+        // Function to update the display of assigned orders for a specific repartidor
+        function updateRepartidorOrderDisplay(repartidorName) {
+            const repartidor = repartidorChatElements[repartidorName];
+            if (repartidor && repartidor.assignedOrdersDisplay) {
+                if (repartidor.assignedOrders.length > 0) {
+                    repartidor.assignedOrdersDisplay.textContent = repartidor.assignedOrders.join(', ');
+                } else {
+                    repartidor.assignedOrdersDisplay.textContent = 'Ninguno';
+                }
+            }
+        }
+
+        // Function to populate the order selection dropdown for a repartidor's messages
+        function populateRepartidorOrderSelect(repartidorName) {
+            const repartidor = repartidorChatElements[repartidorName];
+            if (repartidor && repartidor.orderSelect) {
+                repartidor.orderSelect.innerHTML = '<option value="">Selecciona Pedido</option>';
+                repartidor.assignedOrders.forEach(orderId => {
+                    const option = document.createElement('option');
+                    option.value = orderId;
+                    option.textContent = orderId;
+                    repartidor.orderSelect.appendChild(option);
+                });
+                // Set the last assigned order as the default selected option
+                if (repartidor.assignedOrders.length > 0) {
+                    repartidor.orderSelect.value = repartidor.assignedOrders[repartidor.assignedOrders.length - 1];
+                }
+            }
+        }
+
+        // Simulate local actions (ready for pickup)
+        function sendLocalAction() {
+            if (!currentOrderIdToAssign) {
+                addMessage(localChat, 'Sistema', 'No hay un pedido nuevo esperando ser marcado como "listo".', 'system', false);
+                return;
+            }
+
+            const action = localActionSelect.value;
+            let messageToRepartidor = '';
+            let localMessage = '';
+
+            switch (action) {
+                case 'listo':
+                    localMessage = `Pedido ${currentOrderIdToAssign} listo para retirar.`;
+                    messageToRepartidor = `Pedido ${currentOrderIdToAssign} listo para recoger.`;
+                    
+                    // Play the "ready" sound
+                    playReadySound();
+
+                    // Update order status in localStorage
+                    saveOrder(currentOrderIdToAssign, { status: 'listo_para_recoger' });
+                    break;
+            }
+            addMessage(localChat, 'Local', localMessage, 'local', true, currentOrderIdToAssign);
+            
+            // Send message to the specific repartidor's chat if already assigned
+            const assignedRepartidorForThisOrder = Object.keys(repartidorChatElements).find(
+                name => repartidorChatElements[name].assignedOrders.includes(currentOrderIdToAssign)
+            );
+
+            if (assignedRepartidorForThisOrder && repartidorChatElements[assignedRepartidorForThisOrder]) {
+                const repartidorChatDiv = repartidorChatElements[assignedRepartidorForThisOrder].chatDiv;
+                addMessage(repartidorChatDiv, 'Local', messageToRepartidor, 'local', true, currentOrderIdToAssign);
+            } else {
+                console.log(`Message "${messageToRepartidor}" for order ${currentOrderIdToAssign} will be sent to repartidor upon assignment.`);
+            }
+        }
+
+        // New function for local responses to repartidores
+        function sendLocalResponse() {
+            const responseMessage = localResponseActionSelect.value;
+            if (!responseMessage) {
+                addMessage(localChat, 'Sistema', 'Selecciona una respuesta para enviar.', 'system', false);
+                return;
+            }
+
+            const activeRepartidorNames = Object.keys(repartidorChatElements).filter(name => repartidorChatElements[name].panelDiv.style.display !== 'none' && repartidorChatElements[name].assignedOrders.length > 0);
+            if (activeRepartidorNames.length === 0) {
+                addMessage(localChat, 'Sistema', 'No hay repartidores activos con pedidos asignados para responder.', 'system', false);
+                return;
+            }
+            
+            // For demo, let's pick the first active repartidor with an assigned order.
+            // In a real app, Local would select which repartidor/order to respond to.
+            const targetRepartidor = activeRepartidorNames[0]; 
+            const targetOrderId = repartidorChatElements[targetRepartidor].assignedOrders[0]; // Assuming first assigned order for simplicity
+
+            addMessage(localChat, 'Local', `Respuesta a ${targetRepartidor} (Pedido ${targetOrderId}): ${responseMessage}`, 'local', true, targetOrderId);
+            
+            if (repartidorChatElements[targetRepartidor]) {
+                const repartidorChatDiv = repartidorChatElements[targetRepartidor].chatDiv;
+                addMessage(repartidorChatDiv, 'Local', responseMessage, 'local', true, targetOrderId);
+            }
+
+            // Optionally, reset the select after sending
+            localResponseActionSelect.value = "";
+        }
+
+
+        // Simulate repartidor actions (picked up, en route, arriving, delivered)
+        function sendRepartidorAction(repartidorName) {
+            const repartidorElements = repartidorChatElements[repartidorName];
+            if (!repartidorElements) {
+                console.error(`Repartidor ${repartidorName} elements not found.`);
+                return;
+            }
+
+            const orderIdForMessage = repartidorElements.orderSelect.value;
+            if (!orderIdForMessage) {
+                addMessage(repartidorElements.chatDiv, 'Sistema', 'Por favor, selecciona un ID de pedido para tu mensaje.', 'system', false);
+                return;
+            }
+
+            const action = repartidorElements.actionSelect.value;
+
+            let messageToLocal = '';
+            let repartidorMessage = '';
+            let newStatus = '';
+
+            switch (action) {
+                case 'recogido':
+                    repartidorMessage = `Pedido ${orderIdForMessage} recogido.`;
+                    messageToLocal = `${repartidorName} ha recogido el pedido ${orderIdForMessage}.`;
+                    newStatus = 'recogido';
+                    break;
+                case 'en_camino':
+                    repartidorMessage = `En camino con el pedido ${orderIdForMessage}.`;
+                    messageToLocal = `${repartidorName} está en camino con el pedido ${orderIdForMessage}.`; // Added message to local
+                    newStatus = 'en_camino';
+                    break;
+                case 'llegue':
+                    repartidorMessage = `Estoy llegando al destino del pedido ${orderIdForMessage}.`;
+                    messageToLocal = `${repartidorName} está llegando al destino del pedido ${orderIdForMessage}.`; // Added message to local
+                    newStatus = 'llegando';
+                    break;
+                case 'entregado':
+                    repartidorMessage = `Pedido ${orderIdForMessage} entregado.`;
+                    messageToLocal = `Pedido ${orderIdForMessage} entregado al cliente por ${repartidorName}.`;
+                    newStatus = 'entregado';
+                    
+                    // Remove the order from the repartidor's assigned orders list
+                    repartidorElements.assignedOrders = repartidorElements.assignedOrders.filter(id => id !== orderIdForMessage);
+                    updateRepartidorOrderDisplay(repartidorName);
+                    populateRepartidorOrderSelect(repartidorName); // Refresh the order select
+
+                    // If no more orders for this repartidor, hide their panel
+                    if (repartidorElements.assignedOrders.length === 0) {
+                        repartidorElements.panelDiv.style.display = 'none';
+                        const anyRepartidorActive = Object.values(repartidorChatElements).some(elem => elem.panelDiv.style.display !== 'none');
+                        if (!anyRepartidorActive) {
+                            noRepartidorChatsMessage.style.display = 'block';
+                        }
+                        addMessage(repartidorElements.chatDiv, 'Sistema', 'Pedido finalizado. Esperando nueva asignación.', 'system', false);
+                    }
+                    
+                    // Update order status in localStorage
+                    saveOrder(orderIdForMessage, { status: newStatus }); 
+                    
+                    // Re-enable generate button if max orders per repartidor is no longer met
+                    populateRepartidorSelect();
+
+                    // If no active orders left, hide local action sections and repartidores container
+                    const appData = getAppData();
+                    const activeOrdersCount = Object.values(appData.orders).filter(order => order.status !== 'entregado' && order.status !== 'cancelado').length;
+                    if (activeOrdersCount === 0) {
+                        localActionSection.style.display = 'none';
+                        localResponseSection.style.display = 'none';
+                        repartidoresChatsContainer.style.display = 'none';
+                        addMessage(localChat, 'Sistema', 'Todos los pedidos finalizados. Genera uno nuevo para continuar.', 'system', false);
+                    } else {
+                        addMessage(localChat, 'Sistema', `Pedido ${orderIdForMessage} finalizado.`, 'system', false);
+                    }
+                    addMessage(repartidorElements.chatDiv, 'Sistema', 'Pedido finalizado. Esperando nueva asignación.', 'system', false);
+                    break;
+            }
+
+            if (newStatus && newStatus !== 'entregado') { // Update status for non-delivery actions
+                saveOrder(orderIdForMessage, { status: newStatus });
+            }
+
+            addMessage(repartidorElements.chatDiv, repartidorName, repartidorMessage, 'repartidor', true, orderIdForMessage);
+            if (messageToLocal) addMessage(localChat, repartidorName, messageToLocal, 'repartidor', true, orderIdForMessage);
+        }
+
+        // Function to handle repartidor client problem reports
+        function sendRepartidorProblem(repartidorName) {
+            const repartidorElements = repartidorChatElements[repartidorName];
+            if (!repartidorElements) {
+                console.error(`Repartidor ${repartidorName} elements not found.`);
+                return;
+            }
+
+            const orderIdForMessage = repartidorElements.orderSelect.value;
+            if (!orderIdForMessage) {
+                addMessage(repartidorElements.chatDiv, 'Sistema', 'Por favor, selecciona un ID de pedido para tu mensaje.', 'system', false);
+                return;
+            }
+
+            const problemMessage = repartidorElements.problemActionSelect.value;
+
+            if (!problemMessage) {
+                addMessage(repartidorElements.chatDiv, 'Sistema', 'Selecciona una incidencia de cliente para reportar.', 'system', false);
+                return;
+            }
+
+            // Play the "report" sound
+            playReportSound();
+
+            addMessage(repartidorElements.chatDiv, repartidorName, `Reporte de Cliente (Pedido ${orderIdForMessage}): ${problemMessage}`, 'repartidor', true, orderIdForMessage);
+            addMessage(localChat, repartidorName, `¡ATENCIÓN! ${repartidorName} reporta un problema de cliente para el pedido ${orderIdForMessage}: ${problemMessage}`, 'repartidor', true, orderIdForMessage);
+            
+            // Optionally, reset the select after sending
+            repartidorElements.problemActionSelect.value = "";
+        }
+
+        // New function to handle repartidor address problem reports
+        function sendRepartidorAddressProblem(repartidorName) {
+            const repartidorElements = repartidorChatElements[repartidorName];
+            if (!repartidorElements) {
+                console.error(`Repartidor ${repartidorName} elements not found.`);
+                return;
+            }
+
+            const orderIdForMessage = repartidorElements.orderSelect.value;
+            if (!orderIdForMessage) {
+                addMessage(repartidorElements.chatDiv, 'Sistema', 'Por favor, selecciona un ID de pedido para tu mensaje.', 'system', false);
+                return;
+            }
+
+            const problemMessage = repartidorElements.addressProblemActionSelect.value;
+
+            if (!problemMessage) {
+                addMessage(repartidorElements.chatDiv, 'Sistema', 'Selecciona una incidencia de dirección para reportar.', 'system', false);
+                return;
+            }
+
+            // Play the "report" sound
+            playReportSound();
+
+            addMessage(repartidorElements.chatDiv, repartidorName, `Reporte de Dirección (Pedido ${orderIdForMessage}): ${problemMessage}`, 'repartidor', true, orderIdForMessage);
+            addMessage(localChat, repartidorName, `¡ATENCIÓN! ${repartidorName} reporta un problema de dirección para el pedido ${orderIdForMessage}: ${problemMessage}`, 'repartidor', true, orderIdForMessage);
+            
+            // Optionally, reset the select after sending
+            repartidorElements.addressProblemActionSelect.value = "";
+        }
+
+        // Function to delete a specific order
+        function deleteOrder(orderIdToDelete) {
+            const appData = getAppData();
+            if (appData.orders[orderIdToDelete]) {
+                // If the order was not yet delivered, decrement orderCount
+                if (appData.orders[orderIdToDelete].status !== 'entregado' && appData.orders[orderIdToDelete].status !== 'cancelado') {
+                    orderCount--;
+                    if (orderCount < MAX_ORDERS) {
+                        generateOrderButton.disabled = false; // Re-enable generate button if below max
+                    }
+                }
+
+                // If the deleted order was the one waiting for assignment, clear it
+                if (currentOrderIdToAssign === orderIdToDelete) {
+                    currentOrderIdToAssign = null;
+                    document.getElementById('assign-repartidor-section').style.display = 'none';
+                }
+
+                // If the deleted order was assigned to a repartidor, hide their panel
+                const assignedRepartidorName = Object.keys(repartidorChatElements).find(
+                    name => repartidorChatElements[name].assignedOrders.includes(orderIdToDelete)
+                );
+
+                if (assignedRepartidorName && repartidorChatElements[assignedRepartidorName]) {
+                    const repartidor = repartidorChatElements[assignedRepartidorName];
+                    repartidor.assignedOrders = repartidor.assignedOrders.filter(id => id !== orderIdToDelete);
+                    updateRepartidorOrderDisplay(assignedRepartidorName);
+                    populateRepartidorOrderSelect(assignedRepartidorName);
+
+                    if (repartidor.assignedOrders.length === 0) {
+                        repartidor.panelDiv.style.display = 'none';
+                        const anyRepartidorActive = Object.values(repartidorChatElements).some(elem => elem.panelDiv.style.display !== 'none');
+                        if (!anyRepartidorActive) {
+                            noRepartidorChatsMessage.style.display = 'block';
+                        }
+                        repartidor.chatDiv.innerHTML = '<div class="text-sm text-green-100"><p><strong>Sistema:</strong> Esperando nueva asignación.</p></div>';
+                    }
+                }
+
+                delete appData.orders[orderIdToDelete];
+                setAppData(appData);
+                addMessage(localChat, 'Sistema', `Pedido ${orderIdToDelete} borrado del historial.`, 'system', false);
+                updateGeneratedOrdersDisplay(); // Refresh the display
+                listenForOrders(); // Refresh the order list in the history modal
+                populateRepartidorSelect(); // Refresh available repartidores
+            } else {
+                console.warn(`Attempted to delete non-existent order: ${orderIdToDelete}`);
+            }
+        }
+
+        // Function to update the display of generated orders
+        function updateGeneratedOrdersDisplay() {
+            const appData = getAppData();
+            const ordersArray = Object.keys(appData.orders).map(key => ({ id: key, ...appData.orders[key] }));
+            ordersArray.sort((a, b) => new Date(b.createdAt) - new Date(b.createdAt)); // Sort by creation date
+
+            ordersListDisplay.innerHTML = ''; // Clear current list
+
+            if (ordersArray.length === 0) {
+                ordersListDisplay.innerHTML = '<p class="text-gray-600 text-center">No hay pedidos generados aún.</p>';
+                generatedOrdersContainer.style.display = 'none'; // Hide if no orders
+                return;
+            }
+
+            generatedOrdersContainer.style.display = 'block'; // Show if there are orders
+
+            ordersArray.forEach(order => {
+                const orderDiv = document.createElement('div');
+                orderDiv.classList.add('bg-white', 'p-4', 'rounded-md', 'shadow-sm', 'flex', 'flex-col', 'md:flex-row', 'md:items-center', 'md:justify-between', 'gap-2', 'relative'); // Added relative for positioning 'x'
+
+                const repartidorInfo = order.repartidor ? `<span class="font-semibold text-green-700">${order.repartidor}</span>` : '<span class="text-gray-500">Sin asignar</span>';
+                const statusColor = getStatusColor(order.status);
+                const lastUpdatedTime = order.lastUpdated ? new Date(order.lastUpdated).toLocaleTimeString('es-ES') : '';
+
+                orderDiv.innerHTML = `
+                    <div>
+                        <p class="text-lg font-bold text-gray-800">Pedido: ${order.id}</p>
+                        <p class="text-sm text-gray-600">Estado: <span class="${statusColor} font-semibold">${order.status || 'Desconocido'}</span></p>
+                    </div>
+                    <div class="text-sm text-gray-700">
+                        <p>Repartidor: ${repartidorInfo}</p>
+                        <p>Última actualización: ${lastUpdatedTime}</p>
+                    </div>
+                    <button class="absolute top-2 right-2 text-gray-400 hover:text-gray-700 focus:outline-none" data-order-id="${order.id}">
+                        <i class="fas fa-times"></i>
+                    </button>
+                `;
+                ordersListDisplay.appendChild(orderDiv);
+
+                // Attach event listener to the delete button
+                orderDiv.querySelector('button[data-order-id]').addEventListener('click', (event) => {
+                    const orderId = event.currentTarget.dataset.orderId;
+                    // Replaced alert() with a custom confirmation dialog or a modal for better UX
+                    showCustomConfirm(`¿Estás seguro de que quieres borrar el pedido ${orderId}?`, () => {
+                        deleteOrder(orderId);
+                    });
+                });
+            });
+        }
+
+        // Helper function to get status color (optional, for better visual feedback)
+        function getStatusColor(status) {
+            switch (status) {
+                case 'recibido': return 'text-blue-600';
+                case 'asignado': return 'text-purple-600';
+                case 'listo_para_recoger': return 'text-yellow-600';
+                case 'recogido': return 'text-orange-600';
+                case 'en_camino': return 'text-indigo-600';
+                case 'llegando': return 'text-pink-600';
+                case 'entregado': return 'text-green-600';
+                default: return 'text-gray-600';
+            }
+        }
+
+        // --- Demo Control Functions ---
+
+        // Function to clear all orders from localStorage
+        function clearOrdersHistory() {
+            // Replaced confirm() with a custom confirmation dialog
+            showCustomConfirm('¿Estás seguro de que quieres borrar todo el historial de pedidos? Esta acción no se puede deshacer.', () => {
+                localStorage.removeItem(LOCAL_STORAGE_KEY); // Clear all data
+                resetDemo(); // Reset the demo state and UI
+                closeHistoryModal(); // Close the history modal if open
+                addMessage(localChat, 'Sistema', 'Historial de pedidos borrado.', 'system', false);
+            });
+        }
+
+        // Function to save all orders to a JSON file
+        function saveOrdersToJson() {
+            const appData = getAppData();
+            const ordersJson = JSON.stringify(appData.orders, null, 2); // Pretty print JSON
+
+            const blob = new Blob([ordersJson], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'pedidos.json'; // Filename
+            document.body.appendChild(a); // Append to body to make it clickable
+            a.click(); // Programmatically click the link to trigger download
+            document.body.removeChild(a); // Clean up
+            URL.revokeObjectURL(url); // Release the object URL
+
+            addMessage(localChat, 'Sistema', 'Pedidos guardados como "pedidos.json".', 'system', false);
+        }
+
+        // Start the demo simulation
+        function startDemo() {
+            console.log('startDemo: Function called.');
+            if (demoRunning) {
+                console.log('startDemo: Demo already running, returning.');
+                return; // Prevent starting if already running
+            }
+            try {
+                demoRunning = true;
+                // Reset states for a new demo session, but keep localStorage
+                currentOrderIdToAssign = null;
+                orderCount = Object.keys(getAppData().orders).length; // Re-evaluate orderCount from existing data
+                resetChatWindows();
+                document.getElementById('assign-repartidor-section').style.display = 'none';
+                localActionSection.style.display = 'none';
+                localResponseSection.style.display = 'none';
+                repartidoresChatsContainer.style.display = 'none';
+                
+                // Reset repartidor panels and their assigned orders
+                Object.values(repartidorChatElements).forEach(elem => {
+                    elem.panelDiv.style.display = 'none';
+                    elem.assignedOrders = []; // Clear assigned orders
+                    updateRepartidorOrderDisplay(Object.keys(repartidorChatElements).find(key => repartidorChatElements[key] === elem));
+                    populateRepartidorOrderSelect(Object.keys(repartidorChatElements).find(key => repartidorChatElements[key] === elem));
+                    elem.chatDiv.innerHTML = '<div class="text-sm text-green-100"><p><strong>Sistema:</strong> Esperando nueva asignación.</p></div>';
+                });
+                // Re-initialize repartidorChatElements based on currently active orders in localStorage
+                const appData = getAppData();
+                Object.values(appData.orders).forEach(order => {
+                    if (order.repartidor && order.status !== 'entregado' && order.status !== 'cancelado') {
+                        createRepartidorChatPanel(order.repartidor);
+                        if (!repartidorChatElements[order.repartidor].assignedOrders.includes(order.id)) {
+                            repartidorChatElements[order.repartidor].assignedOrders.push(order.id);
+                        }
+                        updateRepartidorOrderDisplay(order.repartidor);
+                        populateRepartidorOrderSelect(order.repartidor);
+                        repartidoresChatsContainer.style.display = 'flex';
+                        noRepartidorChatsMessage.style.display = 'none';
+                    }
+                });
+
+
+                populateRepartidorSelect(); // Ensure assign repartidor dropdown is updated
+                generateOrderButton.disabled = false; // Enable the generate order button
+
+                addMessage(localChat, 'Sistema', 'Demo iniciada. Haz clic en "Generar Nuevo Pedido".', 'system', false);
+                updateGeneratedOrdersDisplay(); // Ensure orders are displayed from localStorage
+                console.log('startDemo: Demo started successfully.');
+            } catch (error) {
+                console.error('startDemo: Error during demo initialization:', error);
+                addMessage(localChat, 'Sistema', 'Error al iniciar la demo. Por favor, revisa la consola del navegador para más detalles.', 'system', false);
+            }
+        }
+
+        // Reset the demo to its initial state
+        function resetDemo() {
+            console.log('resetDemo: Function called.');
+            try {
+                demoRunning = false;
+                currentOrderIdToAssign = null;
+                orderCount = Object.keys(getAppData().orders).length; // Re-evaluate orderCount from existing data
+                resetChatWindows(); // Clear all chat windows
+                document.getElementById('assign-repartidor-section').style.display = 'none'; // Ensure assignment section is hidden
+                generateOrderButton.disabled = true; // Disable the generate order button
+                
+                // Hide all panels and actions
+                localActionSection.style.display = 'none';
+                localResponseSection.style.display = 'none';
+                repartidoresChatsContainer.style.display = 'none';
+
+                // Clear all dynamic repartidor chats and reset their state
+                Object.values(repartidorChatElements).forEach(elem => {
+                    elem.panelDiv.remove(); // Remove the actual panel from DOM
+                });
+                // Clear repartidorChatElements object completely
+                Object.keys(repartidorChatElements).forEach(key => delete repartidorChatElements[key]);
+                noRepartidorChatsMessage.style.display = 'block'; // Ensure this message is visible when the container is shown again, if no repartidores
+
+                updateGeneratedOrdersDisplay(); // Refresh display based on existing localStorage
+                addMessage(localChat, 'Sistema', 'Demo reiniciada. Presiona "Iniciar Demo" para comenzar.', 'system', false);
+                console.log('resetDemo: Demo reset successfully.');
+            } catch (error) {
+                console.error('resetDemo: Error during demo reset:', error);
+                addMessage(localChat, 'Sistema', 'Error al reiniciar la demo. Por favor, revisa la consola del navegador para más detalles.', 'system', false);
+            }
+        }
+
+        // Clear all chat windows
+        function resetChatWindows() {
+            localChat.innerHTML = '';
+            // Individual repartidor chats are handled by their creation/removal logic
+        }
+
+        // --- Custom Confirmation Modal ---
+        function showCustomConfirm(message, onConfirm) {
+            const modalId = 'customConfirmModal';
+            let modal = document.getElementById(modalId);
+
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = modalId;
+                modal.classList.add('modal'); // Re-use existing modal styling
+                modal.innerHTML = `
+                    <div class="modal-content max-w-sm p-6 text-center">
+                        <p id="confirm-message" class="text-lg font-semibold text-gray-800 mb-6"></p>
+                        <div class="flex justify-center gap-4">
+                            <button id="confirm-yes-btn" class="px-6 py-2 bg-red-600 text-white rounded-md shadow-md hover:bg-red-700 transition duration-200">Sí</button>
+                            <button id="confirm-no-btn" class="px-6 py-2 bg-gray-300 text-gray-800 rounded-md shadow-md hover:bg-gray-400 transition duration-200">No</button>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+            }
+
+            document.getElementById('confirm-message').textContent = message;
+            modal.style.display = 'flex'; // Show the modal
+
+            const confirmYesBtn = document.getElementById('confirm-yes-btn');
+            const confirmNoBtn = document.getElementById('confirm-no-btn');
+
+            // Clear previous listeners to prevent multiple calls
+            const newConfirmYesBtn = confirmYesBtn.cloneNode(true);
+            confirmYesBtn.parentNode.replaceChild(newConfirmYesBtn, confirmYesBtn);
+            const newConfirmNoBtn = confirmNoBtn.cloneNode(true);
+            confirmNoBtn.parentNode.replaceChild(newConfirmNoBtn, confirmNoBtn);
+
+            newConfirmYesBtn.addEventListener('click', () => {
+                modal.style.display = 'none';
+                onConfirm();
+            });
+
+            newConfirmNoBtn.addEventListener('click', () => {
+                modal.style.display = 'none';
+            });
+        }
+
+
+        // --- History Modal Functions ---
+
+        function openHistoryModal() {
+            historyModal.style.display = 'flex'; // Show the modal
+            listenForOrders(); // Refresh the order list when opening the modal
+        }
+
+        function closeHistoryModal() {
+            historyModal.style.display = 'none'; // Hide the modal
+            selectedOrderIdSpan.textContent = 'Ninguno';
+            historyMessagesDisplay.innerHTML = '<p class="text-gray-500">Selecciona un pedido para ver su conversación.</p>';
+        }
+
+        function selectOrder(orderId) {
+            listenForOrderMessages(orderId);
+        }
+
+        // --- Event Listeners ---
+        document.addEventListener('DOMContentLoaded', () => {
+            try { // Wrap the whole DOMContentLoaded block in try-catch
+                // Initialize Tone.js context on user interaction to avoid browser autoplay policy issues
+                document.body.addEventListener('click', Tone.start, { once: true });
+                document.body.addEventListener('touchstart', Tone.start, { once: true });
+
+                resetDemo(); // Set initial demo state and disable generate order button
+                updateGeneratedOrdersDisplay(); // Initial display of orders (will be empty or load from previous session)
+
+                // Attach event listeners to buttons
+                startDemoButton.addEventListener('click', startDemo);
+                resetDemoButton.addEventListener('click', resetDemo);
+                openHistoryModalButton.addEventListener('click', openHistoryModal);
+                generateOrderButton.addEventListener('click', generateNewOrder);
+                sendLocalActionButton.addEventListener('click', sendLocalAction);
+                sendLocalResponseButton.addEventListener('click', sendLocalResponse);
+                assignRepartidorButton.addEventListener('click', assignRepartidor);
+                closeHistoryModalButton.addEventListener('click', closeHistoryModal);
+                clearHistoryModalButton.addEventListener('click', clearOrdersHistory);
+                saveHistoryModalButton.addEventListener('click', saveOrdersToJson); // Attach event listener for save button
+                console.log('DOMContentLoaded: All event listeners attached.');
+            } catch (error) {
+                console.error('DOMContentLoaded: Error during initialization:', error);
+            }
+        });
+
+    </script>
+</body>
+</html>
